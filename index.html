@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UltimateServer Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
+body{display:flex;height:100vh;background:#0f172a;color:#f1f5f9;}
+.sidebar{width:240px;background:#1e293b;display:flex;flex-direction:column;padding:20px;}
+.sidebar h1{font-size:18px;color:#fff;margin-bottom:30px;}
+.nav-item{padding:10px 14px;margin-bottom:8px;border-radius:6px;color:#94a3b8;text-decoration:none;display:block;transition:.2s;cursor:pointer;}
+.nav-item:hover,.nav-item.active{background:#3b82f6;color:#fff;}
+.main{flex:1;display:flex;flex-direction:column;}
+.topbar{background:#1e293b;padding:15px 25px;border-bottom:1px solid #334155;font-weight:500;}
+.content{flex:1;padding:25px;overflow-y:auto;}
+.card{background:#1e293b;border-radius:8px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
+.stat-box{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:20px;text-align:center;}
+.stat-box strong{display:block;color:#94a3b8;font-size:.9em;margin-bottom:8px;}
+.stat-box p{font-size:1.3em;font-weight:600;color:#fff;}
+.commands{display:flex;flex-wrap:wrap;gap:12px;}
+.commands code{background:#334155;padding:8px 14px;border-radius:6px;font-size:.85em;color:#f1f5f9;}
+.logs{max-height:300px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;font-size:.85em;color:#38bdf8;}
+footer{text-align:center;padding:15px;font-size:.8em;color:#64748b;}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+
+/* CHARTS */
+.chart-row {
+  display: flex;
+  flex-wrap: nowrap;   /* prevent stacking */
+  gap: 20px;           /* space between charts */
+  margin: 20px 0;
+}
+
+.chart-container {
+  flex: 1;             /* equal width */
+  background: #1e293b;
+  padding: 10px;
+  border-radius: 8px;
+  height: 180px;       /* smaller height for compact look */
+  min-width: 0;        /* prevents flex items from overflowing */
+}
+canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <h1>UltimateServer</h1>
+  <div class="nav-item active" data-tab="statsTab">Stats</div>
+  <div class="nav-item" data-tab="commandsTab">Commands</div>
+  <div class="nav-item" data-tab="logsTab">Logs</div>
+</aside>
+
+<div class="main">
+  <div class="topbar">Dashboard</div>
+  <div class="content">
+
+    <!-- Stats -->
+      <div class="tab-content active" id="statsTab">
+      <div class="stats">
+        <div class="stat-box"><strong>Uptime</strong><p id="uptime">Loading...</p></div>
+        <div class="stat-box"><strong>CPU Usage</strong><p id="cpuUsage">Loading...</p></div>
+        <div class="stat-box"><strong>Memory Usage</strong><p id="memoryUsage">Loading...</p></div>
+        <div class="stat-box"><strong>Protocol</strong><p id="protocol">Loading...</p></div>
+        <div class="stat-box"><strong>Users</strong><p id="onlineUsers">Loading...</p></div>
+        <div class="stat-box"><strong>Max Connections</strong><p id="maxConnections">Loading...</p></div>
+      </div>
+
+      <!-- Graphs Side by Side -->
+	  <div class="chart-row">
+  		<div class="chart-container"><canvas id="cpuChart"></canvas></div>
+        <div class="chart-container"><canvas id="memoryChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Commands -->
+    <div class="tab-content" id="commandsTab">
+      <div class="card">
+        <div class="commands">
+          <code>createUser</code><code>loginUser</code><code>listUsers</code>
+          <code>say</code><code>makeUUID</code><code>stats</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Logs -->
+    <div class="tab-content" id="logsTab">
+      <div class="card">
+        <div class="logs" id="serverLogs">Loading logs...</div>
+      </div>
+    </div>
+
+  </div>
+  <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
+</div>
+
+<script>
+// TAB SYSTEM
+const tabs=document.querySelectorAll('.nav-item');
+const tabContents=document.querySelectorAll('.tab-content');
+function activateTab(name){
+  tabs.forEach(t=>t.classList.remove('active'));
+  tabContents.forEach(c=>c.classList.remove('active'));
+  const tab=document.querySelector(`.nav-item[data-tab="${name}"]`);
+  const content=document.getElementById(name);
+  if(tab&&content){tab.classList.add('active');content.classList.add('active');
+    if(location.hash!="#"+name){history.replaceState(null,null,"#"+name);}
+  }
+}
+tabs.forEach(tab=>tab.addEventListener('click',()=>{activateTab(tab.dataset.tab)}));
+window.addEventListener('hashchange',()=>{activateTab(location.hash.substring(1)||'statsTab')});
+activateTab(location.hash.substring(1)||'statsTab');
+
+// FETCH LOGIC
+const baseUrl="http://myt.voidborn-games.ir:11002";
+async function fetchStats(){
+  try{
+    let res=await fetch(`${baseUrl}/stats`);
+    let data=await res.json();
+    document.getElementById("uptime").textContent=data.uptime;
+    document.getElementById("onlineUsers").textContent=data.users;
+    document.getElementById("maxConnections").textContent=data.maxConnections||"N/A";
+    document.getElementById("protocol").textContent=data.protocol;
+  }catch{["uptime","onlineUsers","maxConnections","protocol"].forEach(id=>document.getElementById(id).textContent="Unavailable");}
+}
+
+// Resources + Graphs
+const cpuCtx=document.getElementById('cpuChart').getContext('2d');
+const memCtx=document.getElementById('memoryChart').getContext('2d');
+
+const cpuChart = new Chart(cpuCtx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'CPU %',
+      data: [],
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.3)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2,
+      pointRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { display: false },
+      y: { beginAtZero: true, max: 100 }
+    },
+    plugins: { legend: { labels: { color: '#fff', font: { size: 12 } } } }
+  }
+});
+
+const memChart = new Chart(memCtx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Memory MB',
+      data: [],
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16,185,129,0.3)',
+      fill: true,
+      tension: 0.3,
+      borderWidth: 2,
+      pointRadius: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { display: false },
+      y: { beginAtZero: true }
+    },
+    plugins: { legend: { labels: { color: '#fff', font: { size: 12 } } } }
+  }
+});
+
+async function fetchResources(){
+  try{
+    let res=await fetch(`${baseUrl}/system`);
+    let data=await res.json();
+    let cpu=(data.cpuUsage*100).toFixed(1);
+    let mem=data.memoryMB.toFixed(1);
+    document.getElementById("cpuUsage").textContent=cpu+"%";
+    document.getElementById("memoryUsage").textContent=mem+" MB";
+
+    const ts=new Date().toLocaleTimeString();
+    if(cpuChart.data.labels.length>20){cpuChart.data.labels.shift();cpuChart.data.datasets[0].data.shift();}
+    if(memChart.data.labels.length>20){memChart.data.labels.shift();memChart.data.datasets[0].data.shift();}
+    cpuChart.data.labels.push(ts); cpuChart.data.datasets[0].data.push(cpu);
+    memChart.data.labels.push(ts); memChart.data.datasets[0].data.push(mem);
+    cpuChart.update(); memChart.update();
+  }catch{["cpuUsage","memoryUsage"].forEach(id=>document.getElementById(id).textContent="Unavailable");}
+}
+
+// Logs
+async function fetchLogs() {
+    try {
+        let response = await fetch(`${baseUrl}/logs`);
+        if (!response.ok) throw new Error("Failed to fetch logs");
+        let data = await response.json();
+        const logsContainer = document.getElementById('serverLogs');
+        const isAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop <= logsContainer.clientHeight + 10;
+        logsContainer.innerHTML = '';
+        data.forEach(line => { const div=document.createElement('div'); div.textContent=line; logsContainer.appendChild(div); });
+        if (isAtBottom) logsContainer.scrollTop = logsContainer.scrollHeight;
+    } catch { document.getElementById('serverLogs').textContent='Unable to load logs'; }
+}
+
+// Run & refresh
+fetchStats(); fetchResources(); fetchLogs();
+setInterval(fetchStats,2000); setInterval(fetchResources,2000); setInterval(fetchLogs,2000);
+</script>
+</body>
+</html>
