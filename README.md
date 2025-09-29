@@ -2,6 +2,8 @@
 
 A lightweight, high-performance **C# TCP server** for managing users, commands, and real-time communication. Designed for scalability and easy integration with clients or game servers.
 
+Check out the live dashboard here: [Live Dashboard](http://myt.voidborn-games.ir:11002/)
+
 ---
 
 ## **Table of Contents**
