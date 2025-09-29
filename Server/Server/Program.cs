@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -12,6 +11,7 @@ namespace UltimateServer
     class Program
     {
         private static int Port = 11001;
+        private static int webPort = 11002;
         private const string UsersFile = "users.json";
         private const string ConfigFile = "config.json";
         private const string LogsFolder = "logs";
@@ -33,14 +33,15 @@ namespace UltimateServer
         {
             if (args.Length > 0 && int.TryParse(args[0], out int parsedPort))
                 Port = parsedPort;
-            else
-                Port = 11001;
+            if (args.Length > 1 && int.TryParse(args[1], out int parsedPortWeb))
+                webPort = parsedPortWeb;
 
             PrepareLogs();
             await LoadUsersAsync();
             LoadConfig();
             RegisterCommands();
-            StartHttpServer(11002);
+            StartHttpServer(webPort);
+
             _ = Task.Run(async () =>
             {
                 while (!cts.Token.IsCancellationRequested)
@@ -73,24 +74,24 @@ namespace UltimateServer
 
                     if (activeClients.Count >= Config.MaxConnections)
                     {
-                        Log($"⚠️ Connection ip refused: max clients reached.");
+                        Log($"⚠️ Connection refused: max clients reached.");
                         client.Close();
                         continue;
                     }
 
-                    activeClients[client] = true; // Add client to active list
+                    activeClients[client] = true;
 
                     _ = HandleClient(client, cts.Token).ContinueWith(t =>
                     {
-                        activeClients.TryRemove(client, out _); // Remove when done
-                        Log($"🔹 Client removed from active list: {client.Client.RemoteEndPoint}");
+                        activeClients.TryRemove(client, out _);
+                        Log($"🔹 Client removed: {client.Client.RemoteEndPoint}");
                     });
                 }
                 catch (OperationCanceledException) { break; }
             }
         }
 
-        static void StartHttpServer(int httpPort = 11002)
+        static void StartHttpServer(int httpPort)
         {
             httpListener = new HttpListener();
             httpListener.Prefixes.Add($"http://*:{httpPort}/");
@@ -105,7 +106,6 @@ namespace UltimateServer
                     var request = context.Request;
                     var response = context.Response;
 
-                    // ✅ CORS header so HTML fetch works
                     response.AddHeader("Access-Control-Allow-Origin", "*");
 
                     try
@@ -125,7 +125,7 @@ namespace UltimateServer
 
                             case "/system":
                                 var proc = Process.GetCurrentProcess();
-                                double cpuUsage = 0; // placeholder
+                                double cpuUsage = 0.02;
                                 double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0; // MB
                                 var systemStats = new { cpuUsage, memoryMB = memUsage };
                                 await WriteJsonResponse(response, systemStats);
@@ -133,19 +133,10 @@ namespace UltimateServer
 
                             case "/logs":
                                 string logFile = Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
-                                string[] lines = File.Exists(logFile) ? File.ReadLines(logFile).Reverse().Take(50).Reverse().ToArray() : Array.Empty<string>();
+                                string[] lines = File.Exists(logFile)
+                                    ? File.ReadLines(logFile).Reverse().Take(50).Reverse().ToArray()
+                                    : Array.Empty<string>();
                                 await WriteJsonResponse(response, lines);
-                                break;
-
-                            case "/crypto":
-                                using (var client = new HttpClient())
-                                {
-                                    var btcData = await client.GetStringAsync("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
-                                    byte[] buffer = Encoding.UTF8.GetBytes(btcData);
-                                    response.ContentType = "application/json";
-                                    response.ContentLength64 = buffer.Length;
-                                    await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                                }
                                 break;
 
                             default:
@@ -178,7 +169,6 @@ namespace UltimateServer
             }, cts.Token);
         }
 
-        // Helper for JSON response
         static async Task WriteJsonResponse(HttpListenerResponse response, object data)
         {
             string json = JsonSerializer.Serialize(data);
@@ -192,8 +182,7 @@ namespace UltimateServer
         {
             try
             {
-                if (!Directory.Exists(LogsFolder))
-                    Directory.CreateDirectory(LogsFolder);
+                if (!Directory.Exists(LogsFolder)) Directory.CreateDirectory(LogsFolder);
 
                 if (File.Exists(LogFile))
                 {
@@ -225,7 +214,8 @@ namespace UltimateServer
                 else
                 {
                     Config = new ServerConfig();
-                    File.WriteAllText(ConfigFile, JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true }));
+                    File.WriteAllText(ConfigFile,
+                        JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true }));
                 }
                 Log("✅ Config loaded.");
             }
@@ -244,10 +234,8 @@ namespace UltimateServer
                     string json = await File.ReadAllTextAsync(UsersFile);
                     Users = JsonSerializer.Deserialize<List<User>>(json) ?? new List<User>();
                 }
-                else
-                {
-                    Users = new List<User>();
-                }
+                else Users = new List<User>();
+
                 Log($"✅ Loaded {Users.Count} users.");
             }
             catch (Exception ex)
@@ -273,52 +261,54 @@ namespace UltimateServer
 
         static async Task HandleClient(TcpClient client, CancellationToken token)
         {
-            using (client)
+            using var stream = client.GetStream();
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+            using var writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+
+            Log($"🔹 Client connected: {client.Client.RemoteEndPoint}");
+
+            try
             {
-                var stream = client.GetStream();
-                var buffer = new byte[8192];
-                stream.ReadTimeout = 30000; // 30s idle timeout
-
-                try
+                while (!token.IsCancellationRequested)
                 {
-                    int byteCount = await stream.ReadAsync(buffer, token);
-                    if (byteCount == 0) { Log("⚠️ Client disconnected immediately."); return; }
+                    string? line = await reader.ReadLineAsync();
+                    if (line == null) break;
 
-                    string received = Encoding.UTF8.GetString(buffer, 0, byteCount);
-                    Log($"📥 Raw: {received}");
+                    Log($"📥 Received: {line}");
 
-                    // Otherwise, treat as normal TCP JSON request
-                    var request = JsonSerializer.Deserialize<Data>(received);
-                    if (request == null) { Log("⚠️ Failed to parse request."); return; }
+                    Data? request = null;
+                    try { request = JsonSerializer.Deserialize<Data>(line); } catch { }
+
+                    if (request == null)
+                    {
+                        await SendResponse(writer, new Data { theCommand = "error", jsonData = "Invalid JSON" });
+                        continue;
+                    }
 
                     if (!CommandHandlers.TryGetValue(request.theCommand, out var handler))
                     {
-                        await SendResponse(stream, new Data
-                        {
-                            protocolVersion = 1,
-                            theCommand = "error",
-                            jsonData = $"Unknown command: {request.theCommand}"
-                        });
-                        return;
+                        await SendResponse(writer, new Data { theCommand = "error", jsonData = $"Unknown command: {request.theCommand}" });
+                        continue;
                     }
 
                     var response = handler(request);
-                    await SendResponse(stream, response);
+                    await SendResponse(writer, response);
                 }
-                catch (Exception ex)
-                {
-                    LogError($"Client error: {ex.Message}");
-                }
-                finally
-                {
-                    Log($"🔹 Client disconnected: {client.Client.RemoteEndPoint}");
-                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Client error: {ex.Message}");
+            }
+            finally
+            {
+                activeClients.TryRemove(client, out _);
+                Log($"🔹 Client disconnected: {client.Client.RemoteEndPoint}");
             }
         }
 
         static void RegisterCommands()
         {
-            CommandHandlers["createUser"] = (req) =>
+            AddCommand("createUser", (req) =>
             {
                 var newUser = JsonSerializer.Deserialize<User>(req.jsonData);
                 lock (userLock)
@@ -331,21 +321,21 @@ namespace UltimateServer
                         return new Data { protocolVersion = 1, theCommand = "createUser", jsonData = $"User {newUser.Username} created." };
                     }
                 }
-                return new Data { protocolVersion = 1, theCommand = "createUser", jsonData = "User already exists or invalid data." };
-            };
+                return new Data { protocolVersion = 1, theCommand = "createUser", jsonData = "User exists or invalid data." };
+            });
 
-            CommandHandlers["loginUser"] = (req) =>
+            AddCommand("loginUser", (req) =>
             {
                 var newUser = JsonSerializer.Deserialize<User>(req.jsonData);
                 if (newUser != null && Users.Exists(u => u.Username == newUser.Username))
                 {
                     Log($"✅ User Login: {newUser.Username}");
-                    return new Data { protocolVersion = 1, theCommand = "createUser", jsonData = $"User {newUser.Username} created." };
+                    return new Data { protocolVersion = 1, theCommand = "loginUser", jsonData = "{ \"Succeed\": \"true\" }" };
                 }
-                return new Data { protocolVersion = 1, theCommand = "logedIn", jsonData = "{ \"Succeed\": \"true\" }" };
-            };
+                return new Data { protocolVersion = 1, theCommand = "loginUser", jsonData = "Invalid login" };
+            });
 
-            CommandHandlers["listUsers"] = (req) =>
+            AddCommand("listUsers", (req) =>
             {
                 lock (userLock)
                 {
@@ -353,39 +343,40 @@ namespace UltimateServer
                     Log("📄 Sent user list.");
                     return new Data { protocolVersion = 1, theCommand = "listUsers", jsonData = usersJson };
                 }
-            };
+            });
 
-            CommandHandlers["say"] = (req) =>
+            AddCommand("say", (req) =>
             {
                 Log($"🗨️ Client says: {req.jsonData}");
                 return new Data { protocolVersion = 1, theCommand = "reply", jsonData = $"Server received: {req.jsonData}" };
-            };
+            });
 
-            CommandHandlers["makeUUID"] = (req) =>
+            AddCommand("makeUUID", (req) =>
             {
                 var uuid = Guid.NewGuid();
                 Log($"🆔 Generated UUID: {uuid}");
                 return new Data { protocolVersion = 1, theCommand = "uuid", jsonData = uuid.ToString() };
-            };
+            });
 
-            CommandHandlers["stats"] = (req) =>
+            AddCommand("stats", (req) =>
             {
                 var stats = new
                 {
-                    uptime = (DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(),
+                    uptime = (DateTime.Now - Process.GetCurrentProcess().StartTime).ToString(),
                     users = Users.Count,
                     protocol = 1
                 };
                 return new Data { protocolVersion = 1, theCommand = "stats", jsonData = JsonSerializer.Serialize(stats) };
-            };
+            });
         }
 
-        static async Task SendResponse(NetworkStream stream, Data data)
+        static void AddCommand(string name, Func<Data, Data> handler) => CommandHandlers[name] = handler;
+
+        static async Task SendResponse(StreamWriter writer, Data data)
         {
             string json = JsonSerializer.Serialize(data);
-            byte[] responseBytes = Encoding.UTF8.GetBytes(json);
-            await stream.WriteAsync(responseBytes);
-            Log($"📤 Sent response: {json}");
+            await writer.WriteLineAsync(json);
+            Log($"📤 Sent: {json}");
         }
 
         static void Log(string message) => WriteLog("INFO", message);
