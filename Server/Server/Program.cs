@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
@@ -89,7 +90,7 @@ namespace UltimateServer
             }
         }
 
-        static void StartHttpServer(int httpPort = 11001)
+        static void StartHttpServer(int httpPort = 11002)
         {
             httpListener = new HttpListener();
             httpListener.Prefixes.Add($"http://*:{httpPort}/");
@@ -104,46 +105,89 @@ namespace UltimateServer
                     var request = context.Request;
                     var response = context.Response;
 
-                    if (request.Url.AbsolutePath == "/stats")
-                    {
-                        var stats = new
-                        {
-                            uptime = (DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
-                            users = Users.Count,
-                            maxConnections = Config.MaxConnections,
-                            protocol = 1
-                        };
+                    // ✅ CORS header so HTML fetch works
+                    response.AddHeader("Access-Control-Allow-Origin", "*");
 
-                        string json = JsonSerializer.Serialize(stats);
-                        byte[] buffer = Encoding.UTF8.GetBytes(json);
-                        response.ContentType = "application/json";
-                        response.ContentEncoding = Encoding.UTF8;
-                        response.ContentLength64 = buffer.Length;
-                        await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                    }
-                    else
+                    try
                     {
-                        // Serve index.html
-                        string htmlPath = Path.Combine(AppContext.BaseDirectory, "index.html");
-                        if (File.Exists(htmlPath))
+                        switch (request.Url.AbsolutePath)
                         {
-                            string html = await File.ReadAllTextAsync(htmlPath);
-                            byte[] buffer = Encoding.UTF8.GetBytes(html);
-                            response.ContentType = "text/html";
-                            response.ContentEncoding = Encoding.UTF8;
-                            response.ContentLength64 = buffer.Length;
-                            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
-                        }
-                        else
-                        {
-                            response.StatusCode = 404;
+                            case "/stats":
+                                var stats = new
+                                {
+                                    uptime = (DateTime.Now - Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
+                                    users = Users.Count,
+                                    maxConnections = Config.MaxConnections,
+                                    protocol = 1
+                                };
+                                await WriteJsonResponse(response, stats);
+                                break;
+
+                            case "/system":
+                                var proc = Process.GetCurrentProcess();
+                                double cpuUsage = 0; // placeholder
+                                double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0; // MB
+                                var systemStats = new { cpuUsage, memoryMB = memUsage };
+                                await WriteJsonResponse(response, systemStats);
+                                break;
+
+                            case "/logs":
+                                string logFile = Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
+                                string[] lines = File.Exists(logFile) ? File.ReadLines(logFile).Reverse().Take(50).Reverse().ToArray() : Array.Empty<string>();
+                                await WriteJsonResponse(response, lines);
+                                break;
+
+                            case "/crypto":
+                                using (var client = new HttpClient())
+                                {
+                                    var btcData = await client.GetStringAsync("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
+                                    byte[] buffer = Encoding.UTF8.GetBytes(btcData);
+                                    response.ContentType = "application/json";
+                                    response.ContentLength64 = buffer.Length;
+                                    await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                                }
+                                break;
+
+                            default:
+                                string htmlPath = Path.Combine(AppContext.BaseDirectory, "index.html");
+                                if (File.Exists(htmlPath))
+                                {
+                                    string html = await File.ReadAllTextAsync(htmlPath);
+                                    byte[] buffer = Encoding.UTF8.GetBytes(html);
+                                    response.ContentType = "text/html";
+                                    response.ContentLength64 = buffer.Length;
+                                    await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                                }
+                                else
+                                {
+                                    response.StatusCode = 404;
+                                }
+                                break;
                         }
                     }
-
-                    response.OutputStream.Close();
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("HTTP server error: " + ex.Message);
+                        response.StatusCode = 500;
+                    }
+                    finally
+                    {
+                        response.OutputStream.Close();
+                    }
                 }
             }, cts.Token);
         }
+
+        // Helper for JSON response
+        static async Task WriteJsonResponse(HttpListenerResponse response, object data)
+        {
+            string json = JsonSerializer.Serialize(data);
+            byte[] buffer = Encoding.UTF8.GetBytes(json);
+            response.ContentType = "application/json";
+            response.ContentLength64 = buffer.Length;
+            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+        }
+
         static void PrepareLogs()
         {
             try
@@ -242,33 +286,6 @@ namespace UltimateServer
 
                     string received = Encoding.UTF8.GetString(buffer, 0, byteCount);
                     Log($"📥 Raw: {received}");
-
-                    // Detect if it looks like an HTTP request
-                    /*if (received.StartsWith("GET ") || received.StartsWith("POST "))
-                    {
-                        string htmlPath = "index.html";
-                        if (File.Exists(htmlPath))
-                        {
-                            string htmlContent = File.ReadAllText(htmlPath);
-                            string httpResponse = "HTTP/1.1 200 OK\r\n" +
-                                                  "Content-Type: text/html; charset=UTF-8\r\n" +
-                                                  $"Content-Length: {Encoding.UTF8.GetByteCount(htmlContent)}\r\n" +
-                                                  "Connection: close\r\n\r\n" +
-                                                  htmlContent;
-                            byte[] responseBytes = Encoding.UTF8.GetBytes(httpResponse);
-                            await stream.WriteAsync(responseBytes, token);
-                            Log($"📤 Served index.html to browser: {client.Client.RemoteEndPoint}");
-                        }
-                        else
-                        {
-                            string notFound = "HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\nFile not found";
-                            byte[] responseBytes = Encoding.UTF8.GetBytes(notFound);
-                            await stream.WriteAsync(responseBytes, token);
-                            Log($"⚠️ index.html not found for browser: {client.Client.RemoteEndPoint}");
-                        }
-                        return; // Exit after serving HTML
-                    }
-                    */
 
                     // Otherwise, treat as normal TCP JSON request
                     var request = JsonSerializer.Deserialize<Data>(received);
