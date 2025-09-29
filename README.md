@@ -54,10 +54,10 @@ cd Ultimate_C_Sharp_Server
 
 - Default:
 ```bash
-dotnet Server.dll 11001
+dotnet Server.dll 11001 11002
 ```
 
 - Custom:
 ```bash
-dotnet Server.dll OPEN_PORT
+dotnet Server.dll Server_Port Dashboard_Port
 ```
