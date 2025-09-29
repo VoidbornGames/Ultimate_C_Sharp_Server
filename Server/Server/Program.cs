@@ -21,6 +21,7 @@ namespace UltimateServer
         public static List<User> Users = new();
         public static ServerConfig Config = new();
         private static TcpListener? listener;
+        private static HttpListener? httpListener;
         private static CancellationTokenSource cts = new();
 
         private static ConcurrentDictionary<TcpClient, bool> activeClients = new();
@@ -38,6 +39,7 @@ namespace UltimateServer
             await LoadUsersAsync();
             LoadConfig();
             RegisterCommands();
+            StartHttpServer(11002);
             _ = Task.Run(async () =>
             {
                 while (!cts.Token.IsCancellationRequested)
@@ -87,6 +89,61 @@ namespace UltimateServer
             }
         }
 
+        static void StartHttpServer(int httpPort = 11001)
+        {
+            httpListener = new HttpListener();
+            httpListener.Prefixes.Add($"http://*:{httpPort}/");
+            httpListener.Start();
+            Log($"🌐 HTTP server listening on port {httpPort}");
+
+            _ = Task.Run(async () =>
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    var context = await httpListener.GetContextAsync();
+                    var request = context.Request;
+                    var response = context.Response;
+
+                    if (request.Url.AbsolutePath == "/stats")
+                    {
+                        var stats = new
+                        {
+                            uptime = (DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
+                            users = Users.Count,
+                            maxConnections = Config.MaxConnections,
+                            protocol = 1
+                        };
+
+                        string json = JsonSerializer.Serialize(stats);
+                        byte[] buffer = Encoding.UTF8.GetBytes(json);
+                        response.ContentType = "application/json";
+                        response.ContentEncoding = Encoding.UTF8;
+                        response.ContentLength64 = buffer.Length;
+                        await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                    }
+                    else
+                    {
+                        // Serve index.html
+                        string htmlPath = Path.Combine(AppContext.BaseDirectory, "index.html");
+                        if (File.Exists(htmlPath))
+                        {
+                            string html = await File.ReadAllTextAsync(htmlPath);
+                            byte[] buffer = Encoding.UTF8.GetBytes(html);
+                            response.ContentType = "text/html";
+                            response.ContentEncoding = Encoding.UTF8;
+                            response.ContentLength64 = buffer.Length;
+                            await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                        }
+                        else
+                        {
+                            response.StatusCode = 404;
+                        }
+                    }
+
+                    response.OutputStream.Close();
+                }
+            }, cts.Token);
+        }
         static void PrepareLogs()
         {
             try
@@ -176,24 +233,55 @@ namespace UltimateServer
             {
                 var stream = client.GetStream();
                 var buffer = new byte[8192];
-                stream.ReadTimeout = 30000; // 10s idle timeout
+                stream.ReadTimeout = 30000; // 30s idle timeout
 
                 try
                 {
                     int byteCount = await stream.ReadAsync(buffer, token);
                     if (byteCount == 0) { Log("⚠️ Client disconnected immediately."); return; }
 
-                    if (byteCount > buffer.Length) { LogError("Payload too large."); return; }
-
                     string received = Encoding.UTF8.GetString(buffer, 0, byteCount);
                     Log($"📥 Raw: {received}");
 
+                    // Detect if it looks like an HTTP request
+                    /*if (received.StartsWith("GET ") || received.StartsWith("POST "))
+                    {
+                        string htmlPath = "index.html";
+                        if (File.Exists(htmlPath))
+                        {
+                            string htmlContent = File.ReadAllText(htmlPath);
+                            string httpResponse = "HTTP/1.1 200 OK\r\n" +
+                                                  "Content-Type: text/html; charset=UTF-8\r\n" +
+                                                  $"Content-Length: {Encoding.UTF8.GetByteCount(htmlContent)}\r\n" +
+                                                  "Connection: close\r\n\r\n" +
+                                                  htmlContent;
+                            byte[] responseBytes = Encoding.UTF8.GetBytes(httpResponse);
+                            await stream.WriteAsync(responseBytes, token);
+                            Log($"📤 Served index.html to browser: {client.Client.RemoteEndPoint}");
+                        }
+                        else
+                        {
+                            string notFound = "HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\nFile not found";
+                            byte[] responseBytes = Encoding.UTF8.GetBytes(notFound);
+                            await stream.WriteAsync(responseBytes, token);
+                            Log($"⚠️ index.html not found for browser: {client.Client.RemoteEndPoint}");
+                        }
+                        return; // Exit after serving HTML
+                    }
+                    */
+
+                    // Otherwise, treat as normal TCP JSON request
                     var request = JsonSerializer.Deserialize<Data>(received);
                     if (request == null) { Log("⚠️ Failed to parse request."); return; }
 
                     if (!CommandHandlers.TryGetValue(request.theCommand, out var handler))
                     {
-                        await SendResponse(stream, new Data { protocolVersion = 1, theCommand = "error", jsonData = $"Unknown command: {request.theCommand}" });
+                        await SendResponse(stream, new Data
+                        {
+                            protocolVersion = 1,
+                            theCommand = "error",
+                            jsonData = $"Unknown command: {request.theCommand}"
+                        });
                         return;
                     }
 
