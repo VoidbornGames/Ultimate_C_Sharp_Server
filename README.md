@@ -46,3 +46,10 @@ A lightweight, high-performance **C# TCP server** for managing users, commands, 
 ```bash
 git clone https://github.com/VoidbornGames/Ultimate_C_Sharp_Server.git
 cd Ultimate_C_Sharp_Server
+```
+
+## **Running it**
+
+```bash
+dotnet Server.dll OPEN_PORT
+dotnet Server.dll 11001
