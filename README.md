@@ -50,6 +50,12 @@ cd Ultimate_C_Sharp_Server
 
 ## **Running it**
 
+- Default:
+```bash
+dotnet Server.dll 11001
+```
+
+- Custom:
 ```bash
 dotnet Server.dll OPEN_PORT
-dotnet Server.dll 11001
+```
