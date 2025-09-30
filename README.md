@@ -3,6 +3,7 @@
 A lightweight, high-performance **C# TCP server** for managing users, commands, and real-time communication. Designed for scalability and easy integration with clients or game servers.
 
 Check out the live dashboard here: [**Live Dashboard**](https://dashboard.voidborn-games.ir)
+You can see the sample dashboard in [**index.html**]([https://dashboard.voidborn-games.ir](https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/index.html))
 
 ---
 
