@@ -142,7 +142,7 @@ const cpuCtx=document.getElementById('cpuChart').getContext('2d');
 const memCtx=document.getElementById('memoryChart').getContext('2d');
 
 const cpuChart = new Chart(cpuCtx, {
-  type: 'line', data:{labels:[],datasets:[{label:'CPU %',data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2} ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true, max:100} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } } });
+  type: 'line', data:{labels:[],datasets:[{label:'CPU %',data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2} ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true, max:200} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } } });
 const memChart = new Chart(memCtx, {
   type:'line', data:{labels:[], datasets:[{label:'Memory MB',data:[],borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2}]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } }
 });
@@ -193,6 +193,15 @@ async function fetchResources(){
   }
 }
 
+// Add token to all fetch requests
+const token = localStorage.getItem("token");
+if(token) {
+    window.fetch = (orig => (url, opts={})=>{
+        opts.headers = {...opts.headers, "X-Auth-Token": token};
+        return orig(url, opts);
+    })(window.fetch);
+}
+    
     
 // Run & refresh
 fetchStats(); fetchResources(); fetchLogs();
