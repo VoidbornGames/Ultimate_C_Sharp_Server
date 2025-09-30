@@ -62,9 +62,8 @@ canvas {
 <div class="main">
   <div class="topbar">Dashboard</div>
   <div class="content">
-
     <!-- Stats -->
-      <div class="tab-content active" id="statsTab">
+    <div class="tab-content active" id="statsTab">
       <div class="stats">
         <div class="stat-box"><strong>Uptime</strong><p id="uptime">Loading...</p></div>
         <div class="stat-box"><strong>CPU Usage</strong><p id="cpuUsage">Loading...</p></div>
@@ -72,11 +71,13 @@ canvas {
         <div class="stat-box"><strong>Protocol</strong><p id="protocol">Loading...</p></div>
         <div class="stat-box"><strong>Users</strong><p id="onlineUsers">Loading...</p></div>
         <div class="stat-box"><strong>Max Connections</strong><p id="maxConnections">Loading...</p></div>
+        <div class="stat-box"><strong>Disk Usage</strong><p id="diskUsage">Loading...</p></div>
+        <div class="stat-box"><strong>Network</strong><p id="networkUsage">Loading...</p></div>
       </div>
 
       <!-- Graphs Side by Side -->
-	  <div class="chart-row">
-  		<div class="chart-container"><canvas id="cpuChart"></canvas></div>
+      <div class="chart-row">
+        <div class="chart-container"><canvas id="cpuChart"></canvas></div>
         <div class="chart-container"><canvas id="memoryChart"></canvas></div>
       </div>
     </div>
@@ -97,7 +98,6 @@ canvas {
         <div class="logs" id="serverLogs">Loading logs...</div>
       </div>
     </div>
-
   </div>
   <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
 </div>
@@ -119,8 +119,11 @@ tabs.forEach(tab=>tab.addEventListener('click',()=>{activateTab(tab.dataset.tab)
 window.addEventListener('hashchange',()=>{activateTab(location.hash.substring(1)||'statsTab')});
 activateTab(location.hash.substring(1)||'statsTab');
 
+// ===== DYNAMIC BASE URL =====
+// Use the same host and port as this page, so if you change server port it still works
+const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
+
 // FETCH LOGIC
-const baseUrl="http://myt.voidborn-games.ir:11002";
 async function fetchStats(){
   try{
     let res=await fetch(`${baseUrl}/stats`);
@@ -129,7 +132,9 @@ async function fetchStats(){
     document.getElementById("onlineUsers").textContent=data.users;
     document.getElementById("maxConnections").textContent=data.maxConnections||"N/A";
     document.getElementById("protocol").textContent=data.protocol;
-  }catch{["uptime","onlineUsers","maxConnections","protocol"].forEach(id=>document.getElementById(id).textContent="Unavailable");}
+  }catch{
+    ["uptime","onlineUsers","maxConnections","protocol"].forEach(id=>document.getElementById(id).textContent="Unavailable");
+  }
 }
 
 // Resources + Graphs
@@ -137,74 +142,10 @@ const cpuCtx=document.getElementById('cpuChart').getContext('2d');
 const memCtx=document.getElementById('memoryChart').getContext('2d');
 
 const cpuChart = new Chart(cpuCtx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'CPU %',
-      data: [],
-      borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59,130,246,0.3)',
-      fill: true,
-      tension: 0.3,
-      borderWidth: 2,
-      pointRadius: 2
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: { display: false },
-      y: { beginAtZero: true, max: 100 }
-    },
-    plugins: { legend: { labels: { color: '#fff', font: { size: 12 } } } }
-  }
-});
-
+  type: 'line', data:{labels:[],datasets:[{label:'CPU %',data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2} ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true, max:100} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } } });
 const memChart = new Chart(memCtx, {
-  type: 'line',
-  data: {
-    labels: [],
-    datasets: [{
-      label: 'Memory MB',
-      data: [],
-      borderColor: '#10b981',
-      backgroundColor: 'rgba(16,185,129,0.3)',
-      fill: true,
-      tension: 0.3,
-      borderWidth: 2,
-      pointRadius: 2
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: { display: false },
-      y: { beginAtZero: true }
-    },
-    plugins: { legend: { labels: { color: '#fff', font: { size: 12 } } } }
-  }
+  type:'line', data:{labels:[], datasets:[{label:'Memory MB',data:[],borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2}]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } }
 });
-
-async function fetchResources(){
-  try{
-    let res=await fetch(`${baseUrl}/system`);
-    let data=await res.json();
-    let cpu=(data.cpuUsage*100).toFixed(1);
-    let mem=data.memoryMB.toFixed(1);
-    document.getElementById("cpuUsage").textContent=cpu+"%";
-    document.getElementById("memoryUsage").textContent=mem+" MB";
-
-    const ts=new Date().toLocaleTimeString();
-    if(cpuChart.data.labels.length>20){cpuChart.data.labels.shift();cpuChart.data.datasets[0].data.shift();}
-    if(memChart.data.labels.length>20){memChart.data.labels.shift();memChart.data.datasets[0].data.shift();}
-    cpuChart.data.labels.push(ts); cpuChart.data.datasets[0].data.push(cpu);
-    memChart.data.labels.push(ts); memChart.data.datasets[0].data.push(mem);
-    cpuChart.update(); memChart.update();
-  }catch{["cpuUsage","memoryUsage"].forEach(id=>document.getElementById(id).textContent="Unavailable");}
-}
 
 // Logs
 async function fetchLogs() {
@@ -220,9 +161,42 @@ async function fetchLogs() {
     } catch { document.getElementById('serverLogs').textContent='Unable to load logs'; }
 }
 
+async function fetchResources(){
+  try{
+    let res = await fetch(`${baseUrl}/system`);
+    let data = await res.json();
+
+    let cpu = (data.cpuUsage*100).toFixed(1);
+    let mem = data.memoryMB.toFixed(1);
+    let disk = data.diskUsedGB?.toFixed(1) || "N/A";
+    let diskTotal = data.diskTotalGB?.toFixed(1) || "N/A";
+    let netUp = (data.netUploadKBs || 0).toFixed(1);
+    let netDown = (data.netDownloadKBs || 0).toFixed(1);
+
+    document.getElementById("cpuUsage").textContent = cpu + "%";
+    document.getElementById("memoryUsage").textContent = mem + " MB";
+    document.getElementById("diskUsage").textContent = disk + " / " + diskTotal + " GB";
+    document.getElementById("networkUsage").textContent = `${netUp} ↑ / ${netDown} ↓ KB/s`;
+
+    // CPU & Memory graphs
+    const ts = new Date().toLocaleTimeString();
+    if(cpuChart.data.labels.length>20){ cpuChart.data.labels.shift(); cpuChart.data.datasets[0].data.shift(); }
+    if(memChart.data.labels.length>20){ memChart.data.labels.shift(); memChart.data.datasets[0].data.shift(); }
+
+    cpuChart.data.labels.push(ts); cpuChart.data.datasets[0].data.push(cpu); cpuChart.update();
+    memChart.data.labels.push(ts); memChart.data.datasets[0].data.push(mem); memChart.update();
+
+  } catch {
+    ["cpuUsage","memoryUsage","diskUsage","networkUsage"].forEach(id => 
+      document.getElementById(id).textContent="Unavailable"
+    );
+  }
+}
+
+    
 // Run & refresh
 fetchStats(); fetchResources(); fetchLogs();
-setInterval(fetchStats,2000); setInterval(fetchResources,2000); setInterval(fetchLogs,2000);
+setInterval(fetchStats,1000); setInterval(fetchResources,1000); setInterval(fetchLogs,1000);
 </script>
 </body>
 </html>
