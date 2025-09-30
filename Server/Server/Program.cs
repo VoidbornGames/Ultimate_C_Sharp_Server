@@ -24,6 +24,7 @@ namespace UltimateServer
         private static TcpListener? listener;
         private static HttpListener? httpListener;
         private static CancellationTokenSource cts = new();
+        private static string? currentSessionToken = null;
 
         private static ConcurrentDictionary<TcpClient, bool> activeClients = new();
         private static readonly Dictionary<string, Func<Data, Data>> CommandHandlers =
@@ -53,7 +54,7 @@ namespace UltimateServer
 
             listener = new TcpListener(IPAddress.Parse(Config.Ip), Port);
             listener.Start();
-            Log($"🚀 Server listening on {Config.Ip}:{Port} (Max {Config.MaxConnections} clients)");
+            Log($"🚀 Server listening on {Port} (Max {Config.MaxConnections} clients)");
 
             Console.CancelKeyPress += async (s, e) =>
             {
@@ -125,9 +126,40 @@ namespace UltimateServer
 
                             case "/system":
                                 var proc = Process.GetCurrentProcess();
-                                double cpuUsage = 0.02;
-                                double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0; // MB
-                                var systemStats = new { cpuUsage, memoryMB = memUsage };
+
+                                // --- CPU (placeholder for now, you can improve later) ---
+                                double cpuUse = 0.05;
+
+                                // --- Memory (MB) ---
+                                double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0;
+
+                                // --- Disk Usage ---
+                                DriveInfo drive = new DriveInfo("/");
+                                long totalSpace = drive.TotalSize;
+                                long usedSpace = totalSpace - drive.AvailableFreeSpace;
+                                double diskPercent = (double)usedSpace / totalSpace * 100;
+
+                                // --- Network (total since boot) ---
+                                long totalBytesSent = 0;
+                                long totalBytesReceived = 0;
+                                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                                {
+                                    var nicStats = nic.GetIPv4Statistics();   // <-- renamed
+                                    totalBytesSent += nicStats.BytesSent;
+                                    totalBytesReceived += nicStats.BytesReceived;
+                                }
+
+                                var systemStats = new
+                                {
+                                    cpuUsage = cpuUse,
+                                    memoryMB = memUsage,
+                                    diskUsedGB = usedSpace / (1024.0 * 1024 * 1024),
+                                    diskTotalGB = totalSpace / (1024.0 * 1024 * 1024),
+                                    diskPercent,
+                                    netSentMB = totalBytesSent / (1024.0 * 1024),
+                                    netReceivedMB = totalBytesReceived / (1024.0 * 1024)
+                                };
+
                                 await WriteJsonResponse(response, systemStats);
                                 break;
 
@@ -409,5 +441,6 @@ namespace UltimateServer
     {
         public string Ip { get; set; } = "0.0.0.0";
         public int MaxConnections { get; set; } = 50;
+        public string DashboardPasswordHash { get; set; } = "12345678";
     }
 }
