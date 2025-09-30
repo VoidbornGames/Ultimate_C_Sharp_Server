@@ -4,7 +4,7 @@ A lightweight, high-performance **C# TCP server** for managing users, commands, 
 
 Check out the live dashboard here: [**Live Dashboard**](https://dashboard.voidborn-games.ir)
 
-You can see the sample dashboard in [**index.html**]([https://dashboard.voidborn-games.ir](https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/index.html))
+You can see the sample dashboard in [**index.html**](https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/index.html)
 
 ---
 
