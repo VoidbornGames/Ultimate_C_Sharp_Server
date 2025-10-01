@@ -1,12 +1,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
-using System.Web; // Add this for HttpUtility
 using Newtonsoft.Json;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
-using System.Text.RegularExpressions;
+using System.IO;
 
 namespace UltimateServer
 {
@@ -135,7 +134,6 @@ namespace UltimateServer
                     var response = context.Response;
 
                     response.AddHeader("Access-Control-Allow-Origin", "*");
-                    // Add preflight headers for CORS
                     if (request.HttpMethod == "OPTIONS")
                     {
                         response.AddHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
@@ -228,74 +226,6 @@ namespace UltimateServer
                                 await WriteJsonResponse(response, lines);
                                 break;
 
-                            // --- START OF CHUNKED UPLOAD LOGIC ---
-                            case "/upload-chunk":
-                                {
-                                    if (request.HttpMethod == "POST")
-                                    {
-                                        string tempDir = Path.Combine(AppContext.BaseDirectory, "temp");
-                                        Directory.CreateDirectory(tempDir);
-
-                                        using var reader = new StreamReader(request.InputStream);
-                                        string body = await reader.ReadToEndAsync();
-                                        var chunkData = JsonConvert.DeserializeObject<ChunkData>(body);
-
-                                        if (chunkData != null)
-                                        {
-                                            string chunkPath = Path.Combine(tempDir, chunkData.FileId, chunkData.ChunkIndex.ToString());
-                                            Directory.CreateDirectory(Path.GetDirectoryName(chunkPath)!);
-                                            await File.WriteAllBytesAsync(chunkPath, Convert.FromBase64String(chunkData.Data));
-                                            await WriteStringResponse(response, "Chunk received");
-                                        }
-                                        else
-                                        {
-                                            response.StatusCode = 400;
-                                            await WriteStringResponse(response, "Invalid chunk data");
-                                        }
-                                    }
-                                    break;
-                                }
-
-                            case "/finalize-upload":
-                                {
-                                    if (request.HttpMethod == "POST")
-                                    {
-                                        using var reader = new StreamReader(request.InputStream);
-                                        string body = await reader.ReadToEndAsync();
-                                        var finalizeData = JsonConvert.DeserializeObject<FinalizeData>(body);
-
-                                        if (finalizeData != null)
-                                        {
-                                            string videoDir = Path.Combine(AppContext.BaseDirectory, VideosFolder);
-                                            Directory.CreateDirectory(videoDir);
-                                            string finalFilePath = Path.Combine(videoDir, finalizeData.FileName);
-                                            string tempDir = Path.Combine(AppContext.BaseDirectory, "temp", finalizeData.FileId);
-
-                                            using (var finalStream = new FileStream(finalFilePath, FileMode.Create))
-                                            {
-                                                for (int i = 0; i < finalizeData.TotalChunks; i++)
-                                                {
-                                                    string chunkPath = Path.Combine(tempDir, i.ToString());
-                                                    byte[] chunkBytes = await File.ReadAllBytesAsync(chunkPath);
-                                                    await finalStream.WriteAsync(chunkBytes, 0, chunkBytes.Length);
-                                                }
-                                            }
-
-                                            // Clean up temp files
-                                            Directory.Delete(tempDir, true);
-                                            Log($"✅ Chunked upload complete: {finalizeData.FileName}");
-                                            await WriteStringResponse(response, $"Upload successful: {finalizeData.FileName}");
-                                        }
-                                        else
-                                        {
-                                            response.StatusCode = 400;
-                                            await WriteStringResponse(response, "Invalid finalize data");
-                                        }
-                                    }
-                                    break;
-                                }
-                            // --- END OF CHUNKED UPLOAD LOGIC ---
-
                             case "/videos":
                                 {
                                     string videoDir = Path.Combine(AppContext.BaseDirectory, "videos");
@@ -330,7 +260,7 @@ namespace UltimateServer
                                                 using var responseStream = await httpClient.GetStreamAsync(videoUrl);
                                                 using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
                                                 await responseStream.CopyToAsync(fileStream);
-
+                                                
                                                 await WriteStringResponse(response, $"Download successful: {fileName}");
                                             }
                                             else
@@ -436,6 +366,19 @@ namespace UltimateServer
                                             await fs.CopyToAsync(response.OutputStream);
                                         }
                                     }
+                                    // --- FIX FOR "Connection reset by peer" ---
+                                    catch (IOException ioEx)
+                                    {
+                                        if (ioEx.Message.Contains("Connection reset by peer"))
+                                        {
+                                            Log("INFO: Client disconnected during video stream. This is normal.");
+                                        }
+                                        else
+                                        {
+                                            LogError($"Error serving video: {ioEx.Message}");
+                                            response.StatusCode = 500;
+                                        }
+                                    }
                                     catch (Exception ex)
                                     {
                                         LogError($"Error serving video: {ex.Message}");
@@ -470,10 +413,6 @@ namespace UltimateServer
                     {
                         LogError($"HTTP server error: {ex.Message}");
                         response.StatusCode = 500;
-                    }
-                    finally
-                    {
-                        // response.Close() is handled in each case
                     }
                 }
             }, cts.Token);
@@ -719,22 +658,6 @@ namespace UltimateServer
             lock (logLock) { File.AppendAllTextAsync(LogFile, logEntry + Environment.NewLine); }
         }
     }
-
-    // --- NEW CLASSES FOR CHUNKED UPLOAD ---
-    public class ChunkData
-    {
-        public string FileId { get; set; } = "";
-        public int ChunkIndex { get; set; }
-        public string Data { get; set; } = ""; // Base64 encoded data
-    }
-
-    public class FinalizeData
-    {
-        public string FileId { get; set; } = "";
-        public string FileName { get; set; } = "";
-        public int TotalChunks { get; set; }
-    }
-    // --- END OF NEW CLASSES ---
 
     public class Data
     {
