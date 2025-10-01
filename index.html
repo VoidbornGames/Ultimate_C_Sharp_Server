@@ -4,115 +4,669 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UltimateServer Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
-body{display:flex;height:100vh;background:#0f172a;color:#f1f5f9;}
-.sidebar{width:240px;background:#1e293b;display:flex;flex-direction:column;padding:20px;}
-.sidebar h1{font-size:18px;color:#fff;margin-bottom:30px;}
-.nav-item{padding:10px 14px;margin-bottom:8px;border-radius:6px;color:#94a3b8;text-decoration:none;display:block;transition:.2s;cursor:pointer;}
-.nav-item:hover,.nav-item.active{background:#3b82f6;color:#fff;}
-.main{flex:1;display:flex;flex-direction:column;}
-.topbar{background:#1e293b;padding:15px 25px;border-bottom:1px solid #334155;font-weight:500;}
-.content{flex:1;padding:25px;overflow-y:auto;}
-.card{background:#1e293b;border-radius:8px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-bottom:20px;}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
-.stat-box{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:20px;text-align:center;}
-.stat-box strong{display:block;color:#94a3b8;font-size:.9em;margin-bottom:8px;}
-.stat-box p{font-size:1.3em;font-weight:600;color:#fff;}
-.logs{max-height:300px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;font-size:.85em;color:#38bdf8;}
-footer{text-align:center;padding:15px;font-size:.8em;color:#64748b;}
-.tab-content{display:none;}
-.tab-content.active{display:block;}
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-secondary: #141927;
+  --bg-tertiary: #1e2433;
+  --bg-card: #1a1f2e;
+  --bg-card-hover: #222938;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-dim: #64748b;
+  --accent: #6366f1;
+  --accent-hover: #7c7ff3;
+  --accent-light: #818cf8;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --border: #2a3244;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
 
-/* CHARTS */
-.chart-row { display: flex; flex-wrap: nowrap; gap: 20px; margin: 20px 0; }
-.chart-container { flex: 1; background: #1e293b; padding: 10px; border-radius: 8px; height: 180px; min-width: 0; }
-canvas { width: 100% !important; height: 100% !important; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+}
 
-/* VIDEOS */
-.video-card { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:.2s; }
-.video-card:hover { border-color:#3b82f6; transform:scale(1.02);}
-.video-card video { width:100%; max-height:150px; border-radius:6px; }
-.card h3 { color: #f1f5f9; margin-bottom: 12px; font-size: 1.1em; }
+body {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
 
-/* NEW: Video Thumbnail Style */
+/* Sidebar Styles */
+.sidebar {
+  width: 260px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-light), transparent);
+  opacity: 0.5;
+}
+
+.sidebar h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar h1 i {
+  color: var(--accent);
+  font-size: 28px;
+}
+
+.nav-item {
+  padding: 14px 18px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background: var(--accent);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+}
+
+.nav-item i {
+  font-size: 18px;
+  width: 20px;
+  text-align: center;
+}
+
+.nav-item:hover, .nav-item.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.nav-item.active::before {
+  transform: scaleY(1);
+}
+
+.nav-item.active i {
+  color: var(--accent);
+}
+
+/* Main Content */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  background: var(--bg-secondary);
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar h2 {
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.topbar .time {
+  color: var(--text-secondary);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content {
+  flex: 1;
+  padding: 28px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+}
+
+/* Custom Scrollbar */
+.content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Card Styles */
+.card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.card h3 {
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card h3 i {
+  color: var(--accent);
+  font-size: 16px;
+}
+
+/* Stats Grid */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.stat-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.stat-box:hover {
+  transform: translateY(-5px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.stat-box:hover::before {
+  transform: scaleX(1);
+}
+
+.stat-box strong {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-box p {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-box i {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 20px;
+  color: var(--accent);
+  opacity: 0.3;
+}
+
+/* Logs */
+.logs {
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
+}
+
+.logs div {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(42, 50, 68, 0.3);
+}
+
+.logs div:last-child {
+  border-bottom: none;
+}
+
+/* Charts */
+.chart-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.chart-container {
+  flex: 1;
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: 12px;
+  height: 200px;
+  min-width: 0;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.chart-title {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Videos */
+.video-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.video-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(129, 140, 248, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.video-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-5px);
+  box-shadow: var(--shadow);
+}
+
+.video-card:hover::before {
+  opacity: 1;
+}
+
+.video-card video {
+  width: 100%;
+  max-height: 150px;
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
 .video-thumbnail {
-  background-color: #1a1a1a;
+  background-color: var(--bg-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: var(--text-dim);
   font-size: 14px;
   height: 150px;
   background-size: cover;
   background-position: center;
-  border-radius: 6px;
-  margin-bottom: 8px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Upload inputs and buttons */
+.video-thumbnail::after {
+  content: '\f04b';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  position: absolute;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 32px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.video-card:hover .video-thumbnail::after {
+  opacity: 1;
+}
+
+.video-card p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Form Elements */
 input[type="text"] {
-    width: calc(100% - 20px);
-    padding: 10px 12px;
-    border-radius: 6px;
-    border: 1px solid #334155;
-    background: #0f172a;
-    color: #f1f5f9;
-    font-size: 0.95em;
-    margin-bottom: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
 button {
-    background: #3b82f6;
-    color: #fff;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: 0.2s;
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-button:hover { background: #2563eb; }
+button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
 
-#urlUploadStatus { margin-top: 6px; font-size: 0.9em; color: #38bdf8; }
+button:active {
+  transform: translateY(0);
+}
+
+button i {
+  font-size: 14px;
+}
+
+#urlUploadStatus {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+}
+
+/* Tab Content */
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading Animation */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--accent);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Status Indicators */
+.status-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-online {
+  background-color: var(--success);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.status-offline {
+  background-color: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+.status-warning {
+  background-color: var(--warning);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+    padding: 20px 10px;
+  }
+  
+  .sidebar h1 {
+    font-size: 0;
+    margin-bottom: 30px;
+  }
+  
+  .sidebar h1 i {
+    font-size: 24px;
+  }
+  
+  .nav-item span {
+    display: none;
+  }
+  
+  .nav-item {
+    justify-content: center;
+    padding: 14px;
+  }
+  
+  .nav-item::before {
+    display: none;
+  }
+  
+  .stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+  
+  .chart-row {
+    flex-direction: column;
+  }
+}
 </style>
 </head>
 <body>
 <aside class="sidebar">
-  <h1>UltimateServer</h1>
-  <div class="nav-item active" data-tab="statsTab">Stats</div>
-  <div class="nav-item" data-tab="logsTab">Logs</div>
-  <div class="nav-item" data-tab="videosTab">Videos</div>
+  <h1><i class="fas fa-server"></i> <span>UltimateServer</span></h1>
+  <div class="nav-item active" data-tab="statsTab">
+    <i class="fas fa-chart-line"></i> <span>Stats</span>
+  </div>
+  <div class="nav-item" data-tab="logsTab">
+    <i class="fas fa-file-alt"></i> <span>Logs</span>
+  </div>
+  <div class="nav-item" data-tab="videosTab">
+    <i class="fas fa-video"></i> <span>Videos</span>
+  </div>
 </aside>
 
 <div class="main">
-  <div class="topbar">Dashboard</div>
+  <div class="topbar">
+    <h2>Dashboard</h2>
+    <div class="time">
+      <i class="far fa-clock"></i>
+      <span id="currentTime"></span>
+    </div>
+  </div>
   <div class="content">
     <!-- Stats -->
     <div class="tab-content active" id="statsTab">
       <div class="stats">
-        <div class="stat-box"><strong>Uptime</strong><p id="uptime">Loading...</p></div>
-        <div class="stat-box"><strong>CPU Usage</strong><p id="cpuUsage">Loading...</p></div>
-        <div class="stat-box"><strong>Memory Usage</strong><p id="memoryUsage">Loading...</p></div>
-        <div class="stat-box"><strong>Protocol</strong><p id="protocol">Loading...</p></div>
-        <div class="stat-box"><strong>Users</strong><p id="onlineUsers">Loading...</p></div>
-        <div class="stat-box"><strong>Max Connections</strong><p id="maxConnections">Loading...</p></div>
-        <div class="stat-box"><strong>Disk Usage</strong><p id="diskUsage">Loading...</p></div>
-        <div class="stat-box"><strong>Network</strong><p id="networkUsage">Loading...</p></div>
+        <div class="stat-box">
+          <i class="fas fa-clock"></i>
+          <strong>Uptime</strong>
+          <p id="uptime">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-microchip"></i>
+          <strong>CPU Usage</strong>
+          <p id="cpuUsage">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-memory"></i>
+          <strong>Memory Usage</strong>
+          <p id="memoryUsage">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-hdd"></i>
+          <strong>Disk Usage</strong>
+          <p id="diskUsage">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-download"></i>
+          <strong>Network Down</strong>
+          <p id="networkUsageD">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-upload"></i>
+          <strong>Network Up</strong>
+          <p id="networkUsageU">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-users"></i>
+          <strong>Users</strong>
+          <p id="onlineUsers">Loading...</p>
+        </div>
+        <div class="stat-box">
+          <i class="fas fa-link"></i>
+          <strong>Max Connections</strong>
+          <p id="maxConnections">Loading...</p>
+        </div>
       </div>
+      
       <!-- Graphs Side by Side -->
-      <div class="chart-row">
-        <div class="chart-container"><canvas id="cpuChart"></canvas></div>
-        <div class="chart-container"><canvas id="memoryChart"></canvas></div>
+      <div class="card">
+        <h3><i class="fas fa-chart-area"></i> System Performance</h3>
+        <div class="chart-row">
+          <div>
+            <div class="chart-title">CPU Usage (%)</div>
+            <div class="chart-container"><canvas id="cpuChart"></canvas></div>
+          </div>
+          <div>
+            <div class="chart-title">Memory Usage (MB)</div>
+            <div class="chart-container"><canvas id="memoryChart"></canvas></div>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Logs -->
     <div class="tab-content" id="logsTab">
       <div class="card">
+        <h3><i class="fas fa-terminal"></i> Server Logs</h3>
         <div class="logs" id="serverLogs">Loading logs...</div>
       </div>
     </div>
@@ -120,26 +674,34 @@ button:hover { background: #2563eb; }
     <!-- Videos -->
     <div class="tab-content" id="videosTab">
       <div class="card">
+        <h3><i class="fas fa-play-circle"></i> Video Player</h3>
         <video id="videoPlayer" controls style="width:100%;max-height:400px;background:#000;border-radius:8px;display:none;">
           <source id="videoSource" src="" type="video/mp4">
         </video>
-        <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">Loading video...</div>
+        <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">
+          <div class="loading"></div>
+          <p style="margin-top: 10px; color: var(--text-secondary);">Loading video...</p>
+        </div>
       </div>
 
       <!-- Upload from URL -->
       <div class="card">
-        <h3>Upload Video from URL</h3>
+        <h3><i class="fas fa-cloud-download-alt"></i> Upload Video from URL</h3>
         <input type="text" id="videoUrlInput" placeholder="Enter video URL">
-        <button onclick="uploadVideoFromUrl()">Download</button>
+        <button onclick="uploadVideoFromUrl()">
+          <i class="fas fa-download"></i> Download
+        </button>
         <p id="urlUploadStatus"></p>
       </div>
 
       <!-- Video List -->
-      <div class="stats" id="videoList"></div>
+      <div class="card">
+        <h3><i class="fas fa-film"></i> Video Library</h3>
+        <div class="stats" id="videoList"></div>
+      </div>
     </div>
   </div>
-  <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
-</div>
+<footer>&copy; 2025 UltimateServer
 
 <script>
 // TAB SYSTEM
@@ -163,6 +725,88 @@ const baseUrl = `${window.location.protocol}//${window.location.hostname}:${wind
 // Placeholder SVG as a data URI
 const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231a1a1a'/%3E%3Ctext x='50' y='50' font-family='sans-serif' font-size='14' fill='%23888' text-anchor='middle' dy='.3em'%3EVideo%3C/text%3E%3C/svg%3E";
 
+// ===== CHARTS =====
+const maxDataPoints = 20;
+const cpuData = [];
+const memoryData = [];
+const chartLabels = [];
+
+// Initialize CPU Chart
+const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+const cpuChart = new Chart(cpuCtx, {
+    type: 'line',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: 'CPU %',
+            data: cpuData,
+            borderColor: '#f87171',
+            backgroundColor: 'rgba(248, 113, 113, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true, max: 100, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Initialize Memory Chart
+const memCtx = document.getElementById('memoryChart').getContext('2d');
+const memoryChart = new Chart(memCtx, {
+    type: 'line',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: 'Memory MB',
+            data: memoryData,
+            borderColor: '#60a5fa',
+            backgroundColor: 'rgba(96, 165, 250, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+        },
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+function updateCharts(cpu, memory) {
+    const now = new Date();
+    const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+    if (chartLabels.length >= maxDataPoints) {
+        chartLabels.shift();
+        cpuData.shift();
+        memoryData.shift();
+    }
+
+    chartLabels.push(timeLabel);
+    cpuData.push(cpu);
+    memoryData.push(memory);
+
+    cpuChart.update('none');
+    memoryChart.update('none');
+}
+
 // ===== VIDEOS =====
 async function fetchVideos(){
   try {
@@ -181,7 +825,6 @@ async function fetchVideos(){
       const div = document.createElement("div");
       div.className = "video-card";
       
-      // Create a thumbnail div
       const thumbnail = document.createElement("div");
       thumbnail.className = "video-thumbnail";
       thumbnail.style.backgroundImage = `url('${placeholderSvg}')`;
@@ -197,23 +840,19 @@ async function fetchVideos(){
       div.appendChild(thumbnail);
       div.appendChild(title);
       
-      // Add click event to load video in the main player
       div.onclick = () => {
         const videoUrl = `${baseUrl}/videos/${v}`;
         const videoPlayer = document.getElementById("videoPlayer");
         const videoSource = document.getElementById("videoSource");
         const loadingMsg = document.getElementById("loadingMsg");
         
-        // Show loading message, hide player
         videoPlayer.style.display = "none";
         loadingMsg.style.display = "block";
         loadingMsg.textContent = "Loading video...";
         
-        // Set video source and load
         videoSource.src = videoUrl;
         videoPlayer.load();
         
-        // Handle video load events
         videoPlayer.oncanplay = () => {
           videoPlayer.style.display = "block";
           loadingMsg.style.display = "none";
@@ -247,7 +886,7 @@ async function uploadVideoFromUrl(){
     });
     if(res.ok){ 
       status.textContent="Video downloaded successfully!"; 
-      urlInput.value = ''; // Clear the input
+      urlInput.value = ''; 
       fetchVideos(); 
     } 
     else { 
@@ -275,10 +914,17 @@ async function fetchResources(){
     let res = await fetch(`${baseUrl}/system`);
     if(!res.ok) return;
     let data = await res.json();
-    document.getElementById("cpuUsage").textContent = (data.cpuUsage || 0).toFixed(2) + "%";
-    document.getElementById("memoryUsage").textContent = (data.memoryMB || 0).toFixed(2) + " MB";
+    const cpuUsage = (data.cpuUsage || 0).toFixed(2);
+    const memoryUsage = (data.memoryMB || 0).toFixed(2);
+
+    document.getElementById("cpuUsage").textContent = cpuUsage + "%";
+    document.getElementById("memoryUsage").textContent = memoryUsage + " MB";
     document.getElementById("diskUsage").textContent = (data.diskUsedGB || 0).toFixed(2) + " / " + (data.diskTotalGB || 0).toFixed(2) + " GB";
-    document.getElementById("networkUsage").textContent =  (data.netReceivedMB || 0).toFixed(2) + " MB ↓" + "   |   " + (data.netSentMB || 0).toFixed(2) + " MB ↑";
+    document.getElementById("networkUsageD").textContent = (data.netReceivedMB || 0).toFixed(2) + " MB ↓";
+    document.getElementById("networkUsageU").textContent = (data.netSentMB || 0).toFixed(2) + " MB ↑";
+
+    // Update charts with new data
+    updateCharts(parseFloat(cpuUsage), parseFloat(memoryUsage));
   } catch(err){ console.log(err); }
 }
 
@@ -295,8 +941,8 @@ async function fetchLogs(){
 
 // Initial fetch & refresh
 fetchStats(); fetchResources(); fetchLogs(); fetchVideos();
-setInterval(()=>{ fetchStats(); fetchResources(); fetchLogs(); }, 5000);
-setInterval(fetchVideos, 30000);
+setInterval(()=>{ fetchStats(); fetchResources(); fetchLogs(); }, 1000); // Refresh stats every 1 seconds
+setInterval(fetchVideos, 5000); // Refresh video list every 5 seconds
 </script>
 </body>
 </html>
