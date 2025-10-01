@@ -6,6 +6,11 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
 
 namespace UltimateServer
 {
@@ -20,6 +25,8 @@ namespace UltimateServer
         private const string VideosFolder = "videos";
         private static readonly object logLock = new();
         private static readonly object userLock = new();
+        private static readonly string JwtSecret = "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
+        private static readonly SymmetricSecurityKey JwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
 
         public static List<User> Users = new();
         public static ServerConfig Config = new();
@@ -137,7 +144,7 @@ namespace UltimateServer
                     if (request.HttpMethod == "OPTIONS")
                     {
                         response.AddHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-                        response.AddHeader("Access-Control-Allow-Headers", "Content-Type");
+                        response.AddHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
                         response.StatusCode = 200;
                         response.Close();
                         continue;
@@ -147,247 +154,59 @@ namespace UltimateServer
                     {
                         switch (request.Url.AbsolutePath)
                         {
+                            // Authentication endpoints
+                            case "/api/login":
+                                await HandleLogin(request, response);
+                                break;
+
+                            case "/api/verify-2fa":
+                                await HandleTwoFactorVerification(request, response);
+                                break;
+
+                            // Protected endpoints - require authentication
                             case "/stats":
-                                var stats = new
-                                {
-                                    uptime = (DateTime.Now - Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
-                                    users = Users.Count,
-                                    maxConnections = Config.MaxConnections,
-                                    protocol = 1
-                                };
-                                await WriteJsonResponse(response, stats);
+                                if (ValidateAuthentication(request))
+                                    await HandleStats(request, response);
+                                else
+                                    SendUnauthorized(response);
                                 break;
 
                             case "/system":
-                                var proc = Process.GetCurrentProcess();
-                                double cpuUse = lastCpuUsage;
-
-                                double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0;
-                                double memMax = 0;
-                                if (!OperatingSystem.IsWindows())
-                                {
-                                    try
-                                    {
-                                        string memInfo = File.ReadAllText("/proc/meminfo");
-                                        string totalLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemTotal:"));
-                                        string freeLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemAvailable:"));
-
-                                        double totalMem = totalLine != null
-                                            ? double.Parse(new string(totalLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
-                                            : memUsage;
-
-                                        double freeMem = freeLine != null
-                                            ? double.Parse(new string(freeLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
-                                            : 0;
-
-                                        memMax = totalMem;
-                                        memUsage = totalMem - freeMem;
-                                    }
-                                    catch
-                                    {
-                                        memMax = memUsage;
-                                    }
-                                }
-
-                                DriveInfo drive = new DriveInfo("/");
-                                long totalSpace = drive.TotalSize;
-                                long usedSpace = totalSpace - drive.AvailableFreeSpace;
-                                double diskPercent = (double)usedSpace / totalSpace * 100;
-
-                                long totalBytesSent = 0;
-                                long totalBytesReceived = 0;
-                                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
-                                {
-                                    var nicStats = nic.GetIPv4Statistics();
-                                    totalBytesSent += nicStats.BytesSent;
-                                    totalBytesReceived += nicStats.BytesReceived;
-                                }
-
-                                var systemStats = new
-                                {
-                                    cpuUsage = cpuUse,
-                                    memoryMB = memUsage,
-                                    memoryMaxMB = memMax,
-                                    diskUsedGB = usedSpace / (1024.0 * 1024 * 1024),
-                                    diskTotalGB = totalSpace / (1024.0 * 1024 * 1024),
-                                    diskPercent,
-                                    netSentMB = totalBytesSent / (1024.0 * 1024),
-                                    netReceivedMB = totalBytesReceived / (1024.0 * 1024)
-                                };
-
-                                await WriteJsonResponse(response, systemStats);
+                                if (ValidateAuthentication(request))
+                                    await HandleSystem(request, response);
+                                else
+                                    SendUnauthorized(response);
                                 break;
 
                             case "/logs":
-                                string logFile = Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
-                                string[] lines = File.Exists(logFile)
-                                    ? File.ReadLines(logFile).Reverse().Take(50).Reverse().ToArray()
-                                    : Array.Empty<string>();
-                                await WriteJsonResponse(response, lines);
+                                if (ValidateAuthentication(request))
+                                    await HandleLogs(request, response);
+                                else
+                                    SendUnauthorized(response);
                                 break;
 
                             case "/videos":
-                                {
-                                    string videoDir = Path.Combine(AppContext.BaseDirectory, "videos");
-                                    Directory.CreateDirectory(videoDir);
-
-                                    if (request.HttpMethod == "GET")
-                                    {
-                                        string[] files = Directory.GetFiles(videoDir).Select(f => Path.GetFileName(f)).ToArray();
-                                        await WriteJsonResponse(response, files);
-                                    }
-                                    break;
-                                }
+                                if (ValidateAuthentication(request))
+                                    await HandleVideos(request, response);
+                                else
+                                    SendUnauthorized(response);
+                                break;
 
                             case "/upload-url":
-                                {
-                                    if (request.HttpMethod == "POST")
-                                    {
-                                        try
-                                        {
-                                            using var reader = new StreamReader(request.InputStream);
-                                            string body = await reader.ReadToEndAsync();
-                                            var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
-                                            if (json != null && json.TryGetValue("url", out var videoUrl))
-                                            {
-                                                string videoDir = Path.Combine(AppContext.BaseDirectory, "videos");
-                                                Directory.CreateDirectory(videoDir);
-                                                string fileName = Path.GetFileName(new Uri(videoUrl).LocalPath);
-                                                if (string.IsNullOrEmpty(fileName)) fileName = "downloaded_" + DateTime.Now.Ticks + ".mp4";
-                                                string filePath = Path.Combine(videoDir, fileName);
-
-                                                using var httpClient = new HttpClient();
-                                                using var responseStream = await httpClient.GetStreamAsync(videoUrl);
-                                                using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-                                                await responseStream.CopyToAsync(fileStream);
-
-                                                await WriteStringResponse(response, $"Download successful: {fileName}");
-                                            }
-                                            else
-                                            {
-                                                response.StatusCode = 400;
-                                                await WriteStringResponse(response, "Invalid JSON body");
-                                            }
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            LogError($"URL Download failed: {ex.Message}");
-                                            response.StatusCode = 500;
-                                            await WriteStringResponse(response, "Download failed: " + ex.Message);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        response.StatusCode = 405;
-                                        await WriteStringResponse(response, "Only POST allowed");
-                                    }
-                                    break;
-                                }
+                                if (ValidateAuthentication(request))
+                                    await HandleVideoUpload(request, response);
+                                else
+                                    SendUnauthorized(response);
+                                break;
 
                             default:
                                 if (request.Url.AbsolutePath.StartsWith("/videos/"))
                                 {
-                                    string fileName = request.Url.AbsolutePath.Substring("/videos/".Length);
-                                    if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
-                                    {
-                                        response.StatusCode = 400;
-                                        await WriteStringResponse(response, "Invalid filename");
-                                        response.Close();
-                                        break;
-                                    }
-
-                                    string filePath = Path.Combine(AppContext.BaseDirectory, VideosFolder, fileName);
-
-                                    if (!File.Exists(filePath))
-                                    {
-                                        response.StatusCode = 404;
-                                        response.Close();
-                                        break;
-                                    }
-
-                                    try
-                                    {
-                                        string extension = Path.GetExtension(filePath).ToLowerInvariant();
-                                        string contentType = extension switch
-                                        {
-                                            ".mp4" => "video/mp4",
-                                            ".webm" => "video/webm",
-                                            ".ogg" => "video/ogg",
-                                            ".avi" => "video/x-msvideo",
-                                            ".mov" => "video/quicktime",
-                                            _ => "application/octet-stream"
-                                        };
-
-                                        response.ContentType = contentType;
-                                        response.AddHeader("Accept-Ranges", "bytes");
-
-                                        if (request.Headers["Range"] != null)
-                                        {
-                                            long fileLength = new FileInfo(filePath).Length;
-                                            long start = 0;
-                                            long end = fileLength - 1;
-
-                                            string range = request.Headers["Range"].Replace("bytes=", "");
-                                            string[] parts = range.Split('-');
-                                            if (parts.Length > 0 && long.TryParse(parts[0], out long parsedStart))
-                                                start = parsedStart;
-                                            if (parts.Length > 1 && long.TryParse(parts[1], out long parsedEnd))
-                                                end = parsedEnd;
-
-                                            if (start >= fileLength || end >= fileLength || start > end)
-                                            {
-                                                response.StatusCode = 416;
-                                                response.AddHeader("Content-Range", $"bytes */{fileLength}");
-                                                response.Close();
-                                                break;
-                                            }
-
-                                            long contentLength = end - start + 1;
-                                            response.StatusCode = 206;
-                                            response.AddHeader("Content-Range", $"bytes {start}-{end}/{fileLength}");
-                                            response.ContentLength64 = contentLength;
-
-                                            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                                            fs.Seek(start, SeekOrigin.Begin);
-                                            byte[] buffer = new byte[4096];
-                                            int bytesRead;
-                                            long bytesRemaining = contentLength;
-
-                                            while (bytesRemaining > 0 && (bytesRead = await fs.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, bytesRemaining))) > 0)
-                                            {
-                                                await response.OutputStream.WriteAsync(buffer, 0, bytesRead);
-                                                bytesRemaining -= bytesRead;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            response.ContentLength64 = new FileInfo(filePath).Length;
-                                            using var fs = File.OpenRead(filePath);
-                                            await fs.CopyToAsync(response.OutputStream);
-                                        }
-                                    }
-                                    // --- FIX FOR "Connection reset by peer" ---
-                                    catch (IOException ioEx)
-                                    {
-                                        if (ioEx.Message.Contains("Connection reset by peer"))
-                                        {
-                                            Log("INFO: Client disconnected during video stream. This is normal.");
-                                        }
-                                        else
-                                        {
-                                            LogError($"Error serving video: {ioEx.Message}");
-                                            response.StatusCode = 500;
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        LogError($"Error serving video: {ex.Message}");
-                                        response.StatusCode = 500;
-                                    }
-                                    finally
-                                    {
-                                        response.Close();
-                                    }
+                                    // Handle video requests with authentication
+                                    if (ValidateAuthentication(request))
+                                        await ServeVideo(request, response);
+                                    else
+                                        SendUnauthorized(response);
                                 }
                                 else
                                 {
@@ -416,6 +235,515 @@ namespace UltimateServer
                     }
                 }
             }, cts.Token);
+        }
+
+        static async Task HandleLogin(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponse(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var loginData = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
+
+                if (loginData != null &&
+                    loginData.TryGetValue("username", out var username) &&
+                    loginData.TryGetValue("password", out var password))
+                {
+                    // Find user in the database
+                    var user = Users.FirstOrDefault(u => u.Username == username);
+
+                    if (user != null && VerifyPassword(password, user.Password))
+                    {
+                        // Generate JWT token
+                        string token = GenerateJwtToken(user);
+
+                        var responseData = new
+                        {
+                            success = true,
+                            token = token,
+                            user = new { username = user.Username, role = user.Role }
+                        };
+
+                        await WriteJsonResponse(response, responseData);
+                        Log($"✅ User logged in: {username}");
+                    }
+                    else
+                    {
+                        response.StatusCode = 401;
+                        await WriteJsonResponse(response, new { success = false, message = "Invalid username or password" });
+                        Log($"⚠️ Failed login attempt: {username}");
+                    }
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponse(response, new { success = false, message = "Invalid request" });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Login error: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponse(response, new { success = false, message = "Server error" });
+            }
+        }
+
+        static async Task HandleTwoFactorVerification(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            // Implementation for two-factor authentication
+            // This is optional but recommended for higher security
+            await WriteJsonResponse(response, new { success = false, message = "2FA not implemented" });
+        }
+
+        static bool ValidateAuthentication(HttpListenerRequest request)
+        {
+            string authHeader = request.Headers["Authorization"];
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            {
+                return false;
+            }
+
+            string token = authHeader.Substring("Bearer ".Length);
+            return ValidateJwtToken(token);
+        }
+
+        static void SendUnauthorized(HttpListenerResponse response)
+        {
+            response.StatusCode = 401;
+            response.AddHeader("WWW-Authenticate", "Bearer");
+            response.Close();
+        }
+
+        static async Task HandleStats(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            var stats = new
+            {
+                uptime = (DateTime.Now - Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
+                users = Users.Count,
+                maxConnections = Config.MaxConnections,
+                protocol = 1
+            };
+            await WriteJsonResponse(response, stats);
+        }
+
+        static async Task HandleSystem(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            var proc = Process.GetCurrentProcess();
+            double cpuUse = lastCpuUsage;
+
+            double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0;
+            double memMax = 0;
+            if (!OperatingSystem.IsWindows())
+            {
+                try
+                {
+                    string memInfo = File.ReadAllText("/proc/meminfo");
+                    string totalLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemTotal:"));
+                    string freeLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemAvailable:"));
+
+                    double totalMem = totalLine != null
+                        ? double.Parse(new string(totalLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
+                        : memUsage;
+
+                    double freeMem = freeLine != null
+                        ? double.Parse(new string(freeLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
+                        : 0;
+
+                    memMax = totalMem;
+                    memUsage = totalMem - freeMem;
+                }
+                catch
+                {
+                    memMax = memUsage;
+                }
+            }
+
+            DriveInfo drive = new DriveInfo("/");
+            long totalSpace = drive.TotalSize;
+            long usedSpace = totalSpace - drive.AvailableFreeSpace;
+            double diskPercent = (double)usedSpace / totalSpace * 100;
+
+            long totalBytesSent = 0;
+            long totalBytesReceived = 0;
+            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            {
+                var nicStats = nic.GetIPv4Statistics();
+                totalBytesSent += nicStats.BytesSent;
+                totalBytesReceived += nicStats.BytesReceived;
+            }
+
+            var systemStats = new
+            {
+                cpuUsage = cpuUse,
+                memoryMB = memUsage,
+                memoryMaxMB = memMax,
+                diskUsedGB = usedSpace / (1024.0 * 1024 * 1024),
+                diskTotalGB = totalSpace / (1024.0 * 1024 * 1024),
+                diskPercent,
+                netSentMB = totalBytesSent / (1024.0 * 1024),
+                netReceivedMB = totalBytesReceived / (1024.0 * 1024)
+            };
+
+            await WriteJsonResponse(response, systemStats);
+        }
+
+        static async Task HandleLogs(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            string logFile = Path.Combine(AppContext.BaseDirectory, "logs", "latest.log");
+            string[] lines = File.Exists(logFile)
+                ? File.ReadLines(logFile).Reverse().Take(50).Reverse().ToArray()
+                : Array.Empty<string>();
+            await WriteJsonResponse(response, lines);
+        }
+
+        static async Task HandleVideos(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            try
+            {
+                Log($"📹 Handling videos request from: {request.RemoteEndPoint}");
+
+                string videoDir = Path.Combine(AppContext.BaseDirectory, "videos");
+                Directory.CreateDirectory(videoDir);
+
+                if (request.HttpMethod == "GET")
+                {
+                    // Check if directory exists and is accessible
+                    if (!Directory.Exists(videoDir))
+                    {
+                        LogError($"Videos directory does not exist: {videoDir}");
+                        await WriteJsonResponse(response, new { success = false, message = "Videos directory not found" });
+                        return;
+                    }
+
+                    try
+                    {
+                        string[] files = Directory.GetFiles(videoDir)
+                            .Where(f => IsVideoFile(f))
+                            .Select(f => Path.GetFileName(f))
+                            .ToArray();
+
+                        Log($"✅ Found {files.Length} video files");
+                        await WriteJsonResponse(response, files);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        LogError($"Access denied to videos directory: {ex.Message}");
+                        response.StatusCode = 403;
+                        await WriteJsonResponse(response, new { success = false, message = "Access denied to videos directory" });
+                    }
+                    catch (DirectoryNotFoundException ex)
+                    {
+                        LogError($"Videos directory not found: {ex.Message}");
+                        response.StatusCode = 404;
+                        await WriteJsonResponse(response, new { success = false, message = "Videos directory not found" });
+                    }
+                }
+                else
+                {
+                    response.StatusCode = 405;
+                    await WriteJsonResponse(response, new { success = false, message = "Method not allowed" });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error in HandleVideos: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponse(response, new { success = false, message = "Internal server error" });
+            }
+        }
+
+        // Helper method to check if file is a video
+        static bool IsVideoFile(string filePath)
+        {
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension == ".mp4" || extension == ".webm" || extension == ".ogg" ||
+                   extension == ".avi" || extension == ".mov" || extension == ".mkv";
+        }
+
+        static async Task HandleVideoUpload(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponse(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var json = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
+
+                if (json != null && json.TryGetValue("url", out var videoUrl))
+                {
+                    if (string.IsNullOrWhiteSpace(videoUrl))
+                    {
+                        response.StatusCode = 400;
+                        await WriteJsonResponse(response, new { success = false, message = "URL cannot be empty" });
+                        return;
+                    }
+
+                    string videoDir = Path.Combine(AppContext.BaseDirectory, "videos");
+                    Directory.CreateDirectory(videoDir);
+
+                    // Get file name from URL or generate one
+                    string fileName = Path.GetFileName(new Uri(videoUrl).LocalPath);
+                    if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
+                    {
+                        fileName = "downloaded_" + DateTime.Now.Ticks + ".mp4";
+                    }
+
+                    // Sanitize filename
+                    fileName = string.Join("_", fileName.Split(Path.GetInvalidFileNameChars()));
+                    string filePath = Path.Combine(videoDir, fileName);
+
+                    Log($"📥 Starting download from: {videoUrl}");
+
+                    using var httpClient = new HttpClient();
+                    httpClient.Timeout = TimeSpan.FromMinutes(10); // 10 minute timeout
+
+                    try
+                    {
+                        // Get the response headers first to check content type
+                        using var responseMessage = await httpClient.GetAsync(videoUrl, HttpCompletionOption.ResponseHeadersRead);
+
+                        if (!responseMessage.IsSuccessStatusCode)
+                        {
+                            LogError($"Download failed with status: {responseMessage.StatusCode}");
+                            response.StatusCode = 400;
+                            await WriteJsonResponse(response, new { success = false, message = $"Download failed: HTTP {responseMessage.StatusCode}" });
+                            return;
+                        }
+
+                        // Check if it's a video content type
+                        string contentType = responseMessage.Content.Headers.ContentType?.MediaType ?? "";
+                        if (!contentType.StartsWith("video/") && !contentType.Contains("octet-stream"))
+                        {
+                            Log($"⚠️ Warning: Content type is {contentType}, but proceeding anyway");
+                        }
+
+                        // Download the file
+                        using var responseStream = await responseMessage.Content.ReadAsStreamAsync();
+                        using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+
+                        long totalBytes = responseMessage.Content.Headers.ContentLength ?? 0;
+                        long downloadedBytes = 0;
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+
+                        while ((bytesRead = await responseStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer, 0, bytesRead);
+                            downloadedBytes += bytesRead;
+
+                            // Log progress for large files
+                            if (totalBytes > 0 && downloadedBytes % (1024 * 1024) == 0) // Every MB
+                            {
+                                double progress = (double)downloadedBytes / totalBytes * 100;
+                                Log($"📥 Download progress: {progress:F1}%");
+                            }
+                        }
+
+                        await fileStream.FlushAsync();
+
+                        // Verify file was downloaded
+                        if (new FileInfo(filePath).Length > 0)
+                        {
+                            await WriteJsonResponse(response, new { success = true, message = $"Download successful: {fileName}" });
+                            Log($"✅ Video downloaded successfully: {fileName} ({new FileInfo(filePath).Length} bytes)");
+                        }
+                        else
+                        {
+                            File.Delete(filePath); // Remove empty file
+                            response.StatusCode = 500;
+                            await WriteJsonResponse(response, new { success = false, message = "Downloaded file is empty" });
+                            LogError("Downloaded file is empty");
+                        }
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        LogError("Download timed out");
+                        response.StatusCode = 408;
+                        await WriteJsonResponse(response, new { success = false, message = "Download timed out" });
+                    }
+                    catch (HttpRequestException httpEx)
+                    {
+                        LogError($"HTTP error during download: {httpEx.Message}");
+                        response.StatusCode = 400;
+                        await WriteJsonResponse(response, new { success = false, message = $"Download failed: {httpEx.Message}" });
+                    }
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponse(response, new { success = false, message = "Invalid JSON body - url required" });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"URL Download failed: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponse(response, new { success = false, message = "Download failed: " + ex.Message });
+            }
+        }
+
+        static async Task ServeVideo(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            try
+            {
+                // Extract filename from URL
+                string path = request.Url.AbsolutePath;
+                if (!path.StartsWith("/videos/"))
+                {
+                    Log($"❌ Invalid video URL format: {path}");
+                    response.StatusCode = 400;
+                    await WriteStringResponse(response, "Invalid URL format");
+                    response.Close();
+                    return;
+                }
+
+                string fileName = path.Substring("/videos/".Length);
+
+                // Remove any query parameters
+                int queryIndex = fileName.IndexOf('?');
+                if (queryIndex > 0)
+                {
+                    fileName = fileName.Substring(0, queryIndex);
+                }
+
+                // Validate filename to prevent directory traversal
+                if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
+                {
+                    Log($"❌ Invalid filename requested: {fileName}");
+                    response.StatusCode = 400;
+                    await WriteStringResponse(response, "Invalid filename");
+                    response.Close();
+                    return;
+                }
+
+                string filePath = Path.Combine(AppContext.BaseDirectory, "videos", fileName);
+
+                if (!File.Exists(filePath))
+                {
+                    Log($"⚠️ Video file not found: {filePath}");
+                    response.StatusCode = 404;
+                    await WriteStringResponse(response, "Video file not found");
+                    response.Close();
+                    return;
+                }
+
+                Log($"📹 Serving video: {fileName} ({new FileInfo(filePath).Length} bytes)");
+
+                try
+                {
+                    string extension = Path.GetExtension(filePath).ToLowerInvariant();
+                    string contentType = extension switch
+                    {
+                        ".mp4" => "video/mp4",
+                        ".webm" => "video/webm",
+                        ".ogg" => "video/ogg",
+                        ".avi" => "video/x-msvideo",
+                        ".mov" => "video/quicktime",
+                        ".mkv" => "video/x-matroska",
+                        _ => "application/octet-stream"
+                    };
+
+                    response.ContentType = contentType;
+                    response.AddHeader("Accept-Ranges", "bytes");
+                    response.AddHeader("Access-Control-Allow-Origin", "*");
+                    response.AddHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+                    response.AddHeader("Access-Control-Allow-Headers", "Range");
+
+                    long fileLength = new FileInfo(filePath).Length;
+
+                    if (request.Headers["Range"] != null)
+                    {
+                        // Handle range requests for video streaming
+                        string range = request.Headers["Range"].Replace("bytes=", "");
+                        string[] parts = range.Split('-');
+                        long start = 0;
+                        long end = fileLength - 1;
+
+                        if (parts.Length > 0 && long.TryParse(parts[0], out long parsedStart))
+                            start = parsedStart;
+                        if (parts.Length > 1 && long.TryParse(parts[1], out long parsedEnd))
+                            end = parsedEnd;
+
+                        if (start >= fileLength || end >= fileLength || start > end)
+                        {
+                            response.StatusCode = 416;
+                            response.AddHeader("Content-Range", $"bytes */{fileLength}");
+                            response.Close();
+                            return;
+                        }
+
+                        long contentLength = end - start + 1;
+                        response.StatusCode = 206;
+                        response.AddHeader("Content-Range", $"bytes {start}-{end}/{fileLength}");
+                        response.ContentLength64 = contentLength;
+
+                        Log($"🎬 Serving range {start}-{end} of {fileLength} bytes");
+
+                        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        fs.Seek(start, SeekOrigin.Begin);
+                        byte[] buffer = new byte[8192]; // Larger buffer for better performance
+                        int bytesRead;
+                        long bytesRemaining = contentLength;
+
+                        while (bytesRemaining > 0 && (bytesRead = await fs.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, bytesRemaining))) > 0)
+                        {
+                            await response.OutputStream.WriteAsync(buffer, 0, bytesRead);
+                            bytesRemaining -= bytesRead;
+                        }
+                    }
+                    else
+                    {
+                        // Full file request
+                        response.ContentLength64 = fileLength;
+                        Log($"🎬 Serving full file ({fileLength} bytes)");
+
+                        using var fs = File.OpenRead(filePath);
+                        await fs.CopyToAsync(response.OutputStream);
+                    }
+
+                    Log($"✅ Video served successfully");
+                }
+                catch (IOException ioEx)
+                {
+                    if (ioEx.Message.Contains("Connection reset by peer") || ioEx.Message.Contains("The network connection was aborted"))
+                    {
+                        Log("INFO: Client disconnected during video stream. This is normal.");
+                    }
+                    else
+                    {
+                        LogError($"Error serving video: {ioEx.Message}");
+                        response.StatusCode = 500;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogError($"Error serving video: {ex.Message}");
+                    response.StatusCode = 500;
+                }
+                finally
+                {
+                    response.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error in ServeVideo: {ex.Message}");
+                response.StatusCode = 500;
+                response.Close();
+            }
         }
 
         static void PrepareVideos()
@@ -503,7 +831,20 @@ namespace UltimateServer
                     string json = await File.ReadAllTextAsync(UsersFile);
                     Users = JsonConvert.DeserializeObject<List<User>>(json) ?? new List<User>();
                 }
-                else Users = new List<User>();
+                else
+                {
+                    Users = new List<User>();
+                    // Create default admin user
+                    Users.Add(new User
+                    {
+                        Username = "admin",
+                        Password = HashPassword("admin123"),
+                        uuid = Guid.NewGuid(),
+                        Role = "admin"
+                    });
+                    await SaveUsersAsync();
+                    Log("✅ Created default admin user (username: admin, password: admin123)");
+                }
 
                 Log($"✅ Loaded {Users.Count} users.");
             }
@@ -584,6 +925,7 @@ namespace UltimateServer
                 {
                     if (newUser != null && !Users.Exists(u => u.Username == newUser.Username))
                     {
+                        newUser.Password = HashPassword(newUser.Password);
                         Users.Add(newUser);
                         _ = SaveUsersAsync();
                         Log($"✅ User created: {newUser.Username}");
@@ -648,6 +990,61 @@ namespace UltimateServer
             Log($"📤 Sent: {json}");
         }
 
+        // Authentication helper methods
+        static string HashPassword(string password)
+        {
+            using var sha = SHA256.Create();
+            byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(password + JwtSecret));
+            return Convert.ToBase64String(bytes);
+        }
+
+        static bool VerifyPassword(string inputPassword, string storedPassword)
+        {
+            string hashedInput = HashPassword(inputPassword);
+            return hashedInput == storedPassword;
+        }
+
+        static string GenerateJwtToken(User user)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(ClaimTypes.Role, user.Role),
+                    new Claim("uuid", user.uuid.ToString())
+                }),
+                Expires = DateTime.UtcNow.AddHours(24),
+                SigningCredentials = new SigningCredentials(JwtKey, SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            return tokenHandler.WriteToken(token);
+        }
+
+        static bool ValidateJwtToken(string token)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = JwtKey,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         static void Log(string message) => WriteLog("INFO", message);
         static void LogError(string message) => WriteLog("ERROR", message);
 
@@ -672,6 +1069,8 @@ namespace UltimateServer
         public string Password { get; set; } = "";
         public Guid uuid { get; set; }
         public string Role { get; set; } = "player";
+        public bool TwoFactorEnabled { get; set; } = false;
+        public string TwoFactorSecret { get; set; } = "";
     }
 
     public class ServerConfig
