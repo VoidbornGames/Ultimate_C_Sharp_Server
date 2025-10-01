@@ -44,7 +44,232 @@ body {
   overflow: hidden;
 }
 
-/* Sidebar Styles */
+/* Login Page Styles */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-primary);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.login-header h1 i {
+  color: var(--accent);
+  font-size: 32px;
+}
+
+.login-header p {
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.input-group {
+  position: relative;
+}
+
+.input-group i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 16px;
+}
+
+input[type="text"], input[type="password"] {
+  width: 100%;
+  padding: 14px 16px 14px 45px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+input[type="text"]:focus, input[type="password"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.remember-forgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.remember-me input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.remember-me label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.forgot-password {
+  color: var(--accent);
+  font-size: 14px;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+  color: var(--accent-hover);
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.login-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+.login-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.error-message {
+  color: var(--danger);
+  font-size: 14px;
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid var(--danger);
+  display: none;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 30px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.loading-spinner {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.password-strength {
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 8px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.password-strength-bar {
+  height: 100%;
+  width: 0;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.strength-weak { background: var(--danger); width: 33%; }
+.strength-medium { background: var(--warning); width: 66%; }
+.strength-strong { background: var(--success); width: 100%; }
+
+/* Dashboard Styles */
+.dashboard-container {
+  display: none;
+  width: 100%;
+  height: 100vh;
+}
+
 .sidebar {
   width: 260px;
   background: var(--bg-secondary);
@@ -128,7 +353,6 @@ body {
   color: var(--accent);
 }
 
-/* Main Content */
 .main {
   flex: 1;
   display: flex;
@@ -158,6 +382,85 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.user-info:hover {
+  background: var(--bg-tertiary);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+}
+
+.user-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 0;
+  min-width: 180px;
+  box-shadow: var(--shadow);
+  z-index: 100;
+  display: none;
+}
+
+.dropdown-menu.show {
+  display: block;
+}
+
+.dropdown-item {
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.3s ease;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.logout-btn {
+  color: var(--danger);
 }
 
 .content {
@@ -283,30 +586,6 @@ body {
   font-size: 20px;
   color: var(--accent);
   opacity: 0.3;
-}
-
-/* Logs */
-.logs {
-  max-height: 400px;
-  overflow-y: auto;
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-family: 'Courier New', monospace;
-  line-height: 1.6;
-}
-
-.logs div {
-  margin-bottom: 6px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(42, 50, 68, 0.3);
-}
-
-.logs div:last-child {
-  border-bottom: none;
 }
 
 /* Charts */
@@ -512,32 +791,66 @@ footer {
   animation: spin 1s ease-in-out infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* Logs */
+.logs {
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  font-family: 'Courier New', monospace;
+  line-height: 1.6;
 }
 
-/* Status Indicators */
-.status-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 8px;
+.logs div {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(42, 50, 68, 0.3);
 }
 
-.status-online {
-  background-color: var(--success);
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+.logs div:last-child {
+  border-bottom: none;
 }
 
-.status-offline {
-  background-color: var(--danger);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+/* Session Expired Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
 }
 
-.status-warning {
-  background-color: var(--warning);
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+.modal-content {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 30px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+
+.modal-content h3 {
+  margin-bottom: 15px;
+  color: var(--text-primary);
+}
+
+.modal-content p {
+  margin-bottom: 20px;
+  color: var(--text-secondary);
+}
+
+.modal-content button {
+  width: 100%;
 }
 
 /* Responsive Design */
@@ -580,369 +893,885 @@ footer {
 </style>
 </head>
 <body>
-<aside class="sidebar">
-  <h1><i class="fas fa-server"></i> <span>UltimateServer</span></h1>
-  <div class="nav-item active" data-tab="statsTab">
-    <i class="fas fa-chart-line"></i> <span>Stats</span>
-  </div>
-  <div class="nav-item" data-tab="logsTab">
-    <i class="fas fa-file-alt"></i> <span>Logs</span>
-  </div>
-  <div class="nav-item" data-tab="videosTab">
-    <i class="fas fa-video"></i> <span>Videos</span>
-  </div>
-</aside>
-
-<div class="main">
-  <div class="topbar">
-    <h2>Dashboard</h2>
-    <div class="time">
-      <i class="far fa-clock"></i>
-      <span id="currentTime"></span>
+<!-- Login Page -->
+<div class="login-container" id="loginPage">
+  <div class="login-card">
+    <div class="login-header">
+      <h1><i class="fas fa-server"></i> UltimateServer</h1>
+      <p>Sign in to access your dashboard</p>
     </div>
-  </div>
-  <div class="content">
-    <!-- Stats -->
-    <div class="tab-content active" id="statsTab">
-      <div class="stats">
-        <div class="stat-box">
-          <i class="fas fa-clock"></i>
-          <strong>Uptime</strong>
-          <p id="uptime">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-microchip"></i>
-          <strong>CPU Usage</strong>
-          <p id="cpuUsage">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-memory"></i>
-          <strong>Memory Usage</strong>
-          <p id="memoryUsage">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-hdd"></i>
-          <strong>Disk Usage</strong>
-          <p id="diskUsage">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-download"></i>
-          <strong>Network Down</strong>
-          <p id="networkUsageD">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-upload"></i>
-          <strong>Network Up</strong>
-          <p id="networkUsageU">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-users"></i>
-          <strong>Users</strong>
-          <p id="onlineUsers">Loading...</p>
-        </div>
-        <div class="stat-box">
-          <i class="fas fa-link"></i>
-          <strong>Max Connections</strong>
-          <p id="maxConnections">Loading...</p>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <div class="input-group">
+          <i class="fas fa-user"></i>
+          <input type="text" id="username" name="username" placeholder="Enter your username" required>
         </div>
       </div>
       
-      <!-- Graphs Side by Side -->
-      <div class="card">
-        <h3><i class="fas fa-chart-area"></i> System Performance</h3>
-        <div class="chart-row">
-          <div>
-            <div class="chart-title">CPU Usage (%)</div>
-            <div class="chart-container"><canvas id="cpuChart"></canvas></div>
-          </div>
-          <div>
-            <div class="chart-title">Memory Usage (MB)</div>
-            <div class="chart-container"><canvas id="memoryChart"></canvas></div>
-          </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="input-group">
+          <i class="fas fa-lock"></i>
+          <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+        <div class="password-strength">
+          <div class="password-strength-bar" id="passwordStrength"></div>
         </div>
       </div>
-    </div>
-
-    <!-- Logs -->
-    <div class="tab-content" id="logsTab">
-      <div class="card">
-        <h3><i class="fas fa-terminal"></i> Server Logs</h3>
-        <div class="logs" id="serverLogs">Loading logs...</div>
-      </div>
-    </div>
-
-    <!-- Videos -->
-    <div class="tab-content" id="videosTab">
-      <div class="card">
-        <h3><i class="fas fa-play-circle"></i> Video Player</h3>
-        <video id="videoPlayer" controls style="width:100%;max-height:400px;background:#000;border-radius:8px;display:none;">
-          <source id="videoSource" src="" type="video/mp4">
-        </video>
-        <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">
-          <div class="loading"></div>
-          <p style="margin-top: 10px; color: var(--text-secondary);">Loading video...</p>
+      
+      <div class="remember-forgot">
+        <div class="remember-me">
+          <input type="checkbox" id="remember" name="remember">
+          <label for="remember">Remember me</label>
         </div>
+        <a href="#" class="forgot-password">Forgot password?</a>
       </div>
-
-      <!-- Upload from URL -->
-      <div class="card">
-        <h3><i class="fas fa-cloud-download-alt"></i> Upload Video from URL</h3>
-        <input type="text" id="videoUrlInput" placeholder="Enter video URL">
-        <button onclick="uploadVideoFromUrl()">
-          <i class="fas fa-download"></i> Download
-        </button>
-        <p id="urlUploadStatus"></p>
-      </div>
-
-      <!-- Video List -->
-      <div class="card">
-        <h3><i class="fas fa-film"></i> Video Library</h3>
-        <div class="stats" id="videoList"></div>
-      </div>
+      
+      <button type="submit" class="login-btn" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i>
+        <span id="loginBtnText">Sign In</span>
+        <div class="loading-spinner" id="loginSpinner"></div>
+      </button>
+      
+      <div class="error-message" id="errorMessage"></div>
+    </form>
+    
+    <div class="login-footer">
+      &copy; 2025 UltimateServer · VoidbornGames
     </div>
   </div>
-<footer>&copy; 2025 UltimateServer
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard-container" id="dashboardPage">
+  <aside class="sidebar">
+    <h1><i class="fas fa-server"></i> <span>UltimateServer</span></h1>
+    <div class="nav-item active" data-tab="statsTab">
+      <i class="fas fa-chart-line"></i> <span>Stats</span>
+    </div>
+    <div class="nav-item" data-tab="logsTab">
+      <i class="fas fa-file-alt"></i> <span>Logs</span>
+    </div>
+    <div class="nav-item" data-tab="videosTab">
+      <i class="fas fa-video"></i> <span>Videos</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2>Dashboard</h2>
+      <div class="time">
+        <i class="far fa-clock"></i>
+        <span id="currentTime"></span>
+      </div>
+      <div class="user-menu">
+        <div class="user-dropdown">
+          <div class="user-info" id="userInfo">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <span id="userName">Admin</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="dropdown-menu" id="userDropdown">
+            <a href="#" class="dropdown-item">
+              <i class="fas fa-user-circle"></i> Profile
+            </a>
+            <a href="#" class="dropdown-item">
+              <i class="fas fa-cog"></i> Settings
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="#" class="dropdown-item logout-btn" id="logoutBtn">
+              <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <!-- Stats -->
+      <div class="tab-content active" id="statsTab">
+        <div class="stats">
+          <div class="stat-box">
+            <i class="fas fa-clock"></i>
+            <strong>Uptime</strong>
+            <p id="uptime">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-microchip"></i>
+            <strong>CPU Usage</strong>
+            <p id="cpuUsage">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-memory"></i>
+            <strong>Memory Usage</strong>
+            <p id="memoryUsage">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-hdd"></i>
+            <strong>Disk Usage</strong>
+            <p id="diskUsage">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-download"></i>
+            <strong>Network Down</strong>
+            <p id="networkUsageD">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-upload"></i>
+            <strong>Network Up</strong>
+            <p id="networkUsageU">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-users"></i>
+            <strong>Users</strong>
+            <p id="onlineUsers">Loading...</p>
+          </div>
+          <div class="stat-box">
+            <i class="fas fa-link"></i>
+            <strong>Max Connections</strong>
+            <p id="maxConnections">Loading...</p>
+          </div>
+        </div>
+        
+        <!-- Graphs Side by Side -->
+        <div class="card">
+          <h3><i class="fas fa-chart-area"></i> System Performance</h3>
+          <div class="chart-row">
+            <div>
+              <div class="chart-title">CPU Usage (%)</div>
+              <div class="chart-container"><canvas id="cpuChart"></canvas></div>
+            </div>
+            <div>
+              <div class="chart-title">Memory Usage (MB)</div>
+              <div class="chart-container"><canvas id="memoryChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs -->
+      <div class="tab-content" id="logsTab">
+        <div class="card">
+          <h3><i class="fas fa-terminal"></i> Server Logs</h3>
+          <div class="logs" id="serverLogs">Loading logs...</div>
+        </div>
+      </div>
+
+      <!-- Videos -->
+      <div class="tab-content" id="videosTab">
+        <div class="card">
+          <h3><i class="fas fa-play-circle"></i> Video Player</h3>
+          <video id="videoPlayer" controls style="width:100%;max-height:400px;background:#000;border-radius:8px;display:none;">
+            Your browser does not support the video tag.
+          </video>
+          <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">
+            <div class="loading"></div>
+            <p style="margin-top: 10px; color: var(--text-secondary);">Loading video...</p>
+          </div>
+          <div id="videoError" style="text-align:center; padding:20px; display:none; color: var(--danger);">
+            <i class="fas fa-exclamation-circle"></i>
+            <p id="videoErrorText">Error loading video</p>
+          </div>
+        </div>
+
+        <!-- Upload from URL -->
+        <div class="card">
+          <h3><i class="fas fa-cloud-download-alt"></i> Upload Video from URL</h3>
+          <input type="text" id="videoUrlInput" placeholder="Enter video URL">
+          <button onclick="uploadVideoFromUrl()">
+            <i class="fas fa-download"></i> Download
+          </button>
+          <p id="urlUploadStatus"></p>
+        </div>
+
+        <!-- Video List -->
+        <div class="card">
+          <h3><i class="fas fa-film"></i> Video Library</h3>
+          <div class="stats" id="videoList"></div>
+        </div>
+      </div>
+    </div>
+    <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
+  </div>
+</div>
+
+<!-- Session Expired Modal -->
+<div class="modal" id="sessionModal">
+  <div class="modal-content">
+    <h3><i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i> Session Expired</h3>
+    <p>Your session has expired. Please log in again to continue.</p>
+    <button onclick="redirectToLogin()">
+      <i class="fas fa-sign-in-alt"></i> Log In Again
+    </button>
+  </div>
+</div>
 
 <script>
-// TAB SYSTEM
-const tabs=document.querySelectorAll('.nav-item');
-const tabContents=document.querySelectorAll('.tab-content');
-function activateTab(name){
-  tabs.forEach(t=>t.classList.remove('active'));
-  tabContents.forEach(c=>c.classList.remove('active'));
-  const tab=document.querySelector(`.nav-item[data-tab="${name}"]`);
-  const content=document.getElementById(name);
-  if(tab&&content){tab.classList.add('active');content.classList.add('active');
-    if(location.hash!="#"+name){history.replaceState(null,null,"#"+name);}
+// Get the base URL dynamically
+const CONFIG = {
+  get baseUrl() {
+    return `${window.location.protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}`;
+  }
+};
+
+// Authentication state management
+class AuthManager {
+  static isAuthenticated() {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    return !!token;
+  }
+
+  static clearAuth() {
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
+  }
+
+  static setAuth(token, user, remember = false) {
+    if (remember) {
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+    } else {
+      sessionStorage.setItem('authToken', token);
+      sessionStorage.setItem('user', JSON.stringify(user));
+    }
+  }
+
+  static getAuth() {
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+    
+    if (userStr) {
+      try {
+        return { token, user: JSON.parse(userStr) };
+      } catch (e) {
+        return { token, user: null };
+      }
+    }
+    return { token, user: null };
   }
 }
-tabs.forEach(tab=>tab.addEventListener('click',()=>{activateTab(tab.dataset.tab)}));
-window.addEventListener('hashchange',()=>{activateTab(location.hash.substring(1)||'statsTab')});
-activateTab(location.hash.substring(1)||'statsTab');
 
-const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
-
-// Placeholder SVG as a data URI
-const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231a1a1a'/%3E%3Ctext x='50' y='50' font-family='sans-serif' font-size='14' fill='%23888' text-anchor='middle' dy='.3em'%3EVideo%3C/text%3E%3C/svg%3E";
-
-// ===== CHARTS =====
-const maxDataPoints = 20;
-const cpuData = [];
-const memoryData = [];
-const chartLabels = [];
-
-// Initialize CPU Chart
-const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-const cpuChart = new Chart(cpuCtx, {
-    type: 'line',
-    data: {
-        labels: chartLabels,
-        datasets: [{
-            label: 'CPU %',
-            data: cpuData,
-            borderColor: '#f87171',
-            backgroundColor: 'rgba(248, 113, 113, 0.2)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: { beginAtZero: true, max: 100, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
-        },
-        plugins: {
-            legend: { display: false }
-        }
-    }
+// Initialize application
+document.addEventListener('DOMContentLoaded', function() {
+  // Check if user is already authenticated
+  if (AuthManager.isAuthenticated()) {
+    showDashboard();
+  } else {
+    showLogin();
+  }
 });
 
-// Initialize Memory Chart
-const memCtx = document.getElementById('memoryChart').getContext('2d');
-const memoryChart = new Chart(memCtx, {
-    type: 'line',
-    data: {
-        labels: chartLabels,
-        datasets: [{
-            label: 'Memory MB',
-            data: memoryData,
-            borderColor: '#60a5fa',
-            backgroundColor: 'rgba(96, 165, 250, 0.2)',
-            borderWidth: 2,
-            tension: 0.3,
-            fill: true
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
-            x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
-        },
-        plugins: {
-            legend: { display: false }
-        }
+function showLogin() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('dashboardPage').style.display = 'none';
+  
+  const loginForm = document.getElementById('loginForm');
+  const loginBtn = document.getElementById('loginBtn');
+  const loginBtnText = document.getElementById('loginBtnText');
+  const loginSpinner = document.getElementById('loginSpinner');
+  const errorMessage = document.getElementById('errorMessage');
+  const passwordInput = document.getElementById('password');
+  const passwordStrength = document.getElementById('passwordStrength');
+  
+  // Password strength indicator
+  passwordInput.addEventListener('input', function() {
+    const password = this.value;
+    let strength = 0;
+    
+    if (password.length >= 8) strength++;
+    if (password.match(/[a-z]+/)) strength++;
+    if (password.match(/[A-Z]+/)) strength++;
+    if (password.match(/[0-9]+/)) strength++;
+    if (password.match(/[$@#&!]+/)) strength++;
+    
+    passwordStrength.className = 'password-strength-bar';
+    if (strength <= 2) {
+      passwordStrength.classList.add('strength-weak');
+    } else if (strength === 3 || strength === 4) {
+      passwordStrength.classList.add('strength-medium');
+    } else {
+      passwordStrength.classList.add('strength-strong');
     }
-});
-
-function updateCharts(cpu, memory) {
-    const now = new Date();
-    const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-
-    if (chartLabels.length >= maxDataPoints) {
-        chartLabels.shift();
-        cpuData.shift();
-        memoryData.shift();
-    }
-
-    chartLabels.push(timeLabel);
-    cpuData.push(cpu);
-    memoryData.push(memory);
-
-    cpuChart.update('none');
-    memoryChart.update('none');
+  });
+  
+  // Handle login form submission
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const remember = document.getElementById('remember').checked;
+    
+    // Show loading state
+    loginBtn.disabled = true;
+    loginBtnText.textContent = 'Signing In...';
+    loginSpinner.style.display = 'inline-block';
+    errorMessage.style.display = 'none';
+    
+    // Send login request to the server
+    fetch(`${CONFIG.baseUrl}/api/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password, remember })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Store authentication token
+        AuthManager.setAuth(data.token, data.user, remember);
+        
+        // Show dashboard
+        showDashboard();
+      } else {
+        // Show error message
+        errorMessage.textContent = data.message || 'Invalid username or password';
+        errorMessage.style.display = 'block';
+        
+        // Reset button state
+        loginBtn.disabled = false;
+        loginBtnText.textContent = 'Sign In';
+        loginSpinner.style.display = 'none';
+      }
+    })
+    .catch(error => {
+      console.error('Login error:', error);
+      errorMessage.textContent = 'An error occurred. Please try again.';
+      errorMessage.style.display = 'block';
+      
+      // Reset button state
+      loginBtn.disabled = false;
+      loginBtnText.textContent = 'Sign In';
+      loginSpinner.style.display = 'none';
+    });
+  });
+  
+  // Handle forgot password link
+  document.querySelector('.forgot-password').addEventListener('click', function(e) {
+    e.preventDefault();
+    errorMessage.textContent = 'Default credentials: admin / admin123';
+    errorMessage.style.display = 'block';
+  });
 }
 
-// ===== VIDEOS =====
-async function fetchVideos(){
-  try {
-    let res = await fetch(`${baseUrl}/videos`);
-    if(!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-    let videos = await res.json();
-    const videoList = document.getElementById("videoList");
-    videoList.innerHTML = "";
-    
-    if(videos.length === 0) {
-        videoList.innerHTML = "<p style='color: #888; text-align: center; grid-column: 1/-1;'>No videos uploaded yet.</p>";
-        return;
+function showDashboard() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('dashboardPage').style.display = 'flex';
+  
+  // Get user information
+  const auth = AuthManager.getAuth();
+  if (auth.user) {
+    document.getElementById('userName').textContent = auth.user.username || 'User';
+    document.getElementById('userAvatar').textContent = (auth.user.username || 'U').charAt(0).toUpperCase();
+  }
+  
+  // Set up user dropdown
+  const userInfo = document.getElementById('userInfo');
+  const userDropdown = document.getElementById('userDropdown');
+  
+  userInfo.addEventListener('click', function() {
+    userDropdown.classList.toggle('show');
+  });
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', function(e) {
+    if (!userInfo.contains(e.target)) {
+      userDropdown.classList.remove('show');
     }
+  });
+  
+  // Set up logout button
+  document.getElementById('logoutBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    logout();
+  });
+  
+  // Initialize dashboard
+  initializeDashboard();
+}
 
-    videos.forEach(v=>{
-      const div = document.createElement("div");
-      div.className = "video-card";
+function logout() {
+  AuthManager.clearAuth();
+  showLogin();
+}
+
+function redirectToLogin() {
+  logout();
+}
+
+// Initialize dashboard
+function initializeDashboard() {
+  // TAB SYSTEM
+  const tabs = document.querySelectorAll('.nav-item');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  function activateTab(name) {
+    tabs.forEach(t => t.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+    
+    const tab = document.querySelector(`.nav-item[data-tab="${name}"]`);
+    const content = document.getElementById(name);
+    
+    if (tab && content) {
+      tab.classList.add('active');
+      content.classList.add('active');
+    }
+  }
+
+  tabs.forEach(tab => tab.addEventListener('click', () => {
+    activateTab(tab.dataset.tab);
+  }));
+
+  // Update current time
+  function updateTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    document.getElementById('currentTime').textContent = timeString;
+  }
+
+  updateTime();
+  setInterval(updateTime, 1000);
+
+  // Initialize charts
+  const maxDataPoints = 20;
+  const cpuData = [];
+  const memoryData = [];
+  const chartLabels = [];
+
+  // Initialize CPU Chart
+  const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+  const cpuChart = new Chart(cpuCtx, {
+      type: 'line',
+      data: {
+          labels: chartLabels,
+          datasets: [{
+              label: 'CPU %',
+              data: cpuData,
+              borderColor: '#6366f1',
+              backgroundColor: 'rgba(99, 102, 241, 0.1)',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: true,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointBackgroundColor: '#6366f1'
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+              y: { 
+                  beginAtZero: true, 
+                  max: 100, 
+                  grid: { color: '#2a3244', drawBorder: false }, 
+                  ticks: { color: '#64748b', padding: 10 } 
+              },
+              x: { 
+                  grid: { display: false }, 
+                  ticks: { color: '#64748b', padding: 10 } 
+              }
+          },
+          plugins: {
+              legend: { display: false },
+              tooltip: {
+                  backgroundColor: '#1a1f2e',
+                  titleColor: '#f1f5f9',
+                  bodyColor: '#94a3b8',
+                  borderColor: '#2a3244',
+                  borderWidth: 1,
+                  padding: 10,
+                  displayColors: false,
+                  callbacks: {
+                      label: function(context) {
+                          return `CPU: ${context.parsed.y}%`;
+                      }
+                  }
+              }
+          }
+      }
+  });
+
+  // Initialize Memory Chart
+  const memCtx = document.getElementById('memoryChart').getContext('2d');
+  const memoryChart = new Chart(memCtx, {
+      type: 'line',
+      data: {
+          labels: chartLabels,
+          datasets: [{
+              label: 'Memory MB',
+              data: memoryData,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              borderWidth: 2,
+              tension: 0.4,
+              fill: true,
+              pointRadius: 0,
+              pointHoverRadius: 4,
+              pointBackgroundColor: '#10b981'
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+              y: { 
+                  beginAtZero: true, 
+                  grid: { color: '#2a3244', drawBorder: false }, 
+                  ticks: { color: '#64748b', padding: 10 } 
+              },
+              x: { 
+                  grid: { display: false }, 
+                  ticks: { color: '#64748b', padding: 10 } 
+              }
+          },
+          plugins: {
+              legend: { display: false },
+              tooltip: {
+                  backgroundColor: '#1a1f2e',
+                  titleColor: '#f1f5f9',
+                  bodyColor: '#94a3b8',
+                  borderColor: '#2a3244',
+                  borderWidth: 1,
+                  padding: 10,
+                  displayColors: false,
+                  callbacks: {
+                      label: function(context) {
+                          return `Memory: ${context.parsed.y} MB`;
+                      }
+                  }
+              }
+          }
+      }
+  });
+
+  function updateCharts(cpu, memory) {
+      const now = new Date();
+      const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+      if (chartLabels.length >= maxDataPoints) {
+          chartLabels.shift();
+          cpuData.shift();
+          memoryData.shift();
+      }
+
+      chartLabels.push(timeLabel);
+      cpuData.push(cpu);
+      memoryData.push(memory);
+
+      cpuChart.update('none');
+      memoryChart.update('none');
+  }
+
+  // Fetch data from backend
+  function fetchStats() {
+    const auth = AuthManager.getAuth();
+    fetch(`${CONFIG.baseUrl}/stats`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("uptime").textContent = data.uptime || "N/A";
+      document.getElementById("onlineUsers").textContent = data.users || "0";
+      document.getElementById("maxConnections").textContent = data.maxConnections || "0";
+    })
+    .catch(error => {
+      console.error('Error fetching stats:', error);
+    });
+  }
+
+  function fetchSystem() {
+    const auth = AuthManager.getAuth();
+    fetch(`${CONFIG.baseUrl}/system`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      const cpuUsage = (data.cpuUsage || 0).toFixed(2);
+      const memoryUsage = (data.memoryMB || 0).toFixed(2);
+
+      document.getElementById("cpuUsage").textContent = cpuUsage + "%";
+      document.getElementById("memoryUsage").textContent = memoryUsage + " MB";
+      document.getElementById("diskUsage").textContent = (data.diskUsedGB || 0).toFixed(2) + " / " + (data.diskTotalGB || 0).toFixed(2) + " GB";
+      document.getElementById("networkUsageD").textContent = (data.netReceivedMB || 0).toFixed(2) + " MB ↓";
+      document.getElementById("networkUsageU").textContent = (data.netSentMB || 0).toFixed(2) + " MB ↑";
+
+      // Update charts with new data
+      updateCharts(parseFloat(cpuUsage), parseFloat(memoryUsage));
+    })
+    .catch(error => {
+      console.error('Error fetching system data:', error);
+    });
+  }
+
+  function fetchLogs() {
+    const auth = AuthManager.getAuth();
+    fetch(`${CONFIG.baseUrl}/logs`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    .then(response => response.json())
+    .then(logs => {
+      const logsEl = document.getElementById("serverLogs");
+      logsEl.innerHTML = logs.map(l => `<div>${l}</div>`).join("");
+      logsEl.scrollTop = logsEl.scrollHeight;
+    })
+    .catch(error => {
+      console.error('Error fetching logs:', error);
+    });
+  }
+
+  function fetchVideos() {
+    const auth = AuthManager.getAuth();
+    console.log('Fetching videos from:', `${CONFIG.baseUrl}/videos`);
+    console.log('Auth token:', auth.token ? 'Present' : 'Missing');
+    
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    fetch(`${CONFIG.baseUrl}/videos`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      },
+      signal: controller.signal
+    })
+    .then(response => {
+      clearTimeout(timeoutId);
+      console.log('Videos response status:', response.status);
+      console.log('Videos response headers:', [...response.headers.entries()]);
       
-      const thumbnail = document.createElement("div");
-      thumbnail.className = "video-thumbnail";
-      thumbnail.style.backgroundImage = `url('${placeholderSvg}')`;
+      if (!response.ok) {
+        // Try to get error details from response
+        return response.text().then(text => {
+          console.error('Error response body:', text);
+          throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+        });
+      }
+      return response.json();
+    })
+    .then(videos => {
+      console.log('Videos received:', videos);
+      const videoList = document.getElementById("videoList");
+      videoList.innerHTML = "";
       
-      const title = document.createElement("p");
-      title.textContent = v;
-      title.style.margin = "0";
-      title.style.overflow = "hidden";
-      title.style.textOverflow = "ellipsis";
-      title.style.whiteSpace = "nowrap";
-      title.style.color = "#f1f5f9";
-      
-      div.appendChild(thumbnail);
-      div.appendChild(title);
-      
-      div.onclick = () => {
-        const videoUrl = `${baseUrl}/videos/${v}`;
-        const videoPlayer = document.getElementById("videoPlayer");
-        const videoSource = document.getElementById("videoSource");
-        const loadingMsg = document.getElementById("loadingMsg");
+      if(!videos || videos.length === 0) {
+          videoList.innerHTML = "<p style='color: var(--text-dim); text-align: center; grid-column: 1/-1; padding: 20px;'>No videos uploaded yet.</p>";
+          return;
+      }
+
+      videos.forEach(v => {
+        const div = document.createElement("div");
+        div.className = "video-card";
         
-        videoPlayer.style.display = "none";
-        loadingMsg.style.display = "block";
-        loadingMsg.textContent = "Loading video...";
+        const thumbnail = document.createElement("div");
+        thumbnail.className = "video-thumbnail";
+        thumbnail.style.backgroundImage = `url('https://picsum.photos/seed/${v}/300/200.jpg')`;
         
-        videoSource.src = videoUrl;
-        videoPlayer.load();
+        const title = document.createElement("p");
+        title.textContent = v;
         
-        videoPlayer.oncanplay = () => {
-          videoPlayer.style.display = "block";
-          loadingMsg.style.display = "none";
+        div.appendChild(thumbnail);
+        div.appendChild(title);
+        
+        div.onclick = () => {
+          console.log('Playing video:', v);
+          playVideo(v);
         };
         
-        videoPlayer.onerror = () => {
-          loadingMsg.textContent = "Error loading video. The file might be corrupt or in an unsupported format.";
-        };
+        videoList.appendChild(div);
+      });
+    })
+    .catch(error => {
+      clearTimeout(timeoutId);
+      console.error('Error fetching videos:', error);
+      
+      let errorMessage = "Error loading videos";
+      if (error.name === 'AbortError') {
+        errorMessage = "Request timed out. The server might be busy.";
+      } else if (error.message.includes('504')) {
+        errorMessage = "Gateway timeout. The server is not responding.";
+      } else if (error.message.includes('401')) {
+        errorMessage = "Authentication failed. Please log in again.";
+      } else if (error.message.includes('403')) {
+        errorMessage = "Access denied. You don't have permission to view videos.";
+      } else {
+        errorMessage = "Error loading videos: " + error.message;
+      }
+      
+      const videoList = document.getElementById("videoList");
+      videoList.innerHTML = `<p style='color: var(--danger); text-align: center; grid-column: 1/-1; padding: 20px;'><i class='fas fa-exclamation-circle'></i> ${errorMessage}</p>`;
+      
+      // If it's an auth error, try to re-authenticate
+      if (error.message.includes('401') || error.message.includes('403')) {
+        setTimeout(() => {
+          if (confirm('Your session may have expired. Would you like to log in again?')) {
+            logout();
+          }
+        }, 1000);
+      }
+    });
+  }
+
+  function playVideo(fileName) {
+    const auth = AuthManager.getAuth();
+    const videoPlayer = document.getElementById("videoPlayer");
+    const loadingMsg = document.getElementById("loadingMsg");
+    const videoError = document.getElementById("videoError");
+    const videoErrorText = document.getElementById("videoErrorText");
+    
+    // Reset UI
+    videoPlayer.style.display = "none";
+    videoError.style.display = "none";
+    loadingMsg.style.display = "block";
+    loadingMsg.innerHTML = '<div class="loading"></div><p style="margin-top: 10px; color: var(--text-secondary);">Loading video...</p>';
+    
+    // Create a blob URL for the video
+    const videoUrl = `${CONFIG.baseUrl}/videos/${fileName}`;
+    
+    // Set up video source with authorization header
+    fetch(videoUrl, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.blob();
+    })
+    .then(blob => {
+      // Create a blob URL for the video
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Set the video source
+      videoPlayer.src = blobUrl;
+      videoPlayer.load();
+      
+      videoPlayer.oncanplay = () => {
+        console.log('Video can play');
+        videoPlayer.style.display = "block";
+        loadingMsg.style.display = "none";
       };
       
-      videoList.appendChild(div);
+      videoPlayer.onloadeddata = () => {
+        console.log('Video data loaded');
+      };
+      
+      videoPlayer.onerror = (e) => {
+        console.error('Video error:', e);
+        loadingMsg.style.display = "none";
+        videoError.style.display = "block";
+        videoErrorText.textContent = "Error loading video. The file might be corrupt or in an unsupported format.";
+      };
+      
+      videoPlayer.onstalled = () => {
+        console.warn('Video stalled');
+        loadingMsg.innerHTML = '<div class="loading"></div><p style="margin-top: 10px; color: var(--warning);">Video loading stalled. Retrying...</p>';
+        videoPlayer.load();
+      };
+      
+      // Add timeout for video loading
+      setTimeout(() => {
+        if (loadingMsg.style.display !== "none") {
+          loadingMsg.style.display = "none";
+          videoError.style.display = "block";
+          videoErrorText.textContent = "Video loading timed out. The file might be too large or the server is slow to respond.";
+        }
+      }, 30000); // 30 second timeout
+      
+      // Clean up the blob URL when the video is unloaded
+      videoPlayer.onunload = () => {
+        URL.revokeObjectURL(blobUrl);
+      };
+    })
+    .catch(err => {
+      console.error('Error loading video:', err);
+      loadingMsg.style.display = "none";
+      videoError.style.display = "block";
+      videoErrorText.textContent = "Error loading video: " + err.message;
     });
-  } catch(err){ 
-    console.error("Error fetching videos:", err);
-    const videoList = document.getElementById("videoList");
-    videoList.innerHTML = "<p style='color: #ff5555; text-align: center; grid-column: 1/-1;'>Error loading videos. Please refresh the page.</p>";
   }
+
+  // Initial fetch & refresh
+  fetchStats();
+  fetchSystem();
+  fetchLogs();
+  fetchVideos();
+
+  setInterval(() => { 
+    fetchStats(); 
+    fetchSystem(); 
+    fetchLogs(); 
+  }, 1000); // Refresh stats every 2 seconds
+
+  setInterval(fetchVideos, 5000); // Refresh video list every 5 seconds
 }
 
-async function uploadVideoFromUrl(){
+// Video upload function
+window.uploadVideoFromUrl = function(){
   const urlInput = document.getElementById("videoUrlInput");
   const status = document.getElementById("urlUploadStatus");
   const url = urlInput.value.trim();
-  if(!url){ status.textContent="Please enter a URL"; return; }
-  status.textContent = "Downloading...";
-  try {
-    let res = await fetch(`${baseUrl}/upload-url`, { 
-      method:"POST", 
-      headers:{"Content-Type":"application/json"}, 
-      body: JSON.stringify({url: url}) 
-    });
-    if(res.ok){ 
-      status.textContent="Video downloaded successfully!"; 
-      urlInput.value = ''; 
-      fetchVideos(); 
-    } 
-    else { 
-      const errorText = await res.text();
-      status.textContent="Download failed: " + errorText; 
+  
+  if(!url) { 
+    status.innerHTML = "<i class='fas fa-exclamation-circle'></i> Please enter a URL"; 
+    return; 
+  }
+  
+  status.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Downloading...";
+  
+  const auth = AuthManager.getAuth();
+  console.log('Starting download from:', url);
+  
+  fetch(`${CONFIG.baseUrl}/upload-url`, { 
+    method:"POST", 
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${auth.token}`
+    }, 
+    body: JSON.stringify({url: url}) 
+  })
+  .then(response => {
+    console.log('Upload response status:', response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
-  } catch(err){ status.textContent="Error: "+err.message; }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Upload response data:', data);
+    if(data.success) { 
+      status.innerHTML = "<i class='fas fa-check-circle' style='color: var(--success);'></i> " + data.message; 
+      urlInput.value = ''; 
+      // Refresh video list after a short delay
+      setTimeout(() => {
+        fetchVideos();
+      }, 1000);
+    } else { 
+      status.innerHTML = "<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> " + data.message; 
+    }
+  })
+  .catch(err => { 
+    console.error('Upload error:', err);
+    status.innerHTML = "<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> Error: " + err.message; 
+  });
 }
-
-// ===== STATS =====
-async function fetchStats(){
-  try {
-    let res = await fetch(`${baseUrl}/stats`);
-    if(!res.ok) return;
-    let data = await res.json();
-    document.getElementById("uptime").textContent = data.uptime || "N/A";
-    document.getElementById("protocol").textContent = data.protocol || "N/A";
-    document.getElementById("onlineUsers").textContent = data.users || "0";
-    document.getElementById("maxConnections").textContent = data.maxConnections || "0";
-  } catch(err){ console.log(err); }
-}
-
-async function fetchResources(){
-  try {
-    let res = await fetch(`${baseUrl}/system`);
-    if(!res.ok) return;
-    let data = await res.json();
-    const cpuUsage = (data.cpuUsage || 0).toFixed(2);
-    const memoryUsage = (data.memoryMB || 0).toFixed(2);
-
-    document.getElementById("cpuUsage").textContent = cpuUsage + "%";
-    document.getElementById("memoryUsage").textContent = memoryUsage + " MB";
-    document.getElementById("diskUsage").textContent = (data.diskUsedGB || 0).toFixed(2) + " / " + (data.diskTotalGB || 0).toFixed(2) + " GB";
-    document.getElementById("networkUsageD").textContent = (data.netReceivedMB || 0).toFixed(2) + " MB ↓";
-    document.getElementById("networkUsageU").textContent = (data.netSentMB || 0).toFixed(2) + " MB ↑";
-
-    // Update charts with new data
-    updateCharts(parseFloat(cpuUsage), parseFloat(memoryUsage));
-  } catch(err){ console.log(err); }
-}
-
-async function fetchLogs(){
-  try {
-    let res = await fetch(`${baseUrl}/logs`);
-    if(!res.ok) return;
-    let logs = await res.json();
-    const logsEl = document.getElementById("serverLogs");
-    logsEl.innerHTML = logs.map(l=>`<div>${l}</div>`).join("");
-    logsEl.scrollTop = logsEl.scrollHeight;
-  } catch(err){ console.log(err); }
-}
-
-// Initial fetch & refresh
-fetchStats(); fetchResources(); fetchLogs(); fetchVideos();
-setInterval(()=>{ fetchStats(); fetchResources(); fetchLogs(); }, 1000); // Refresh stats every 1 seconds
-setInterval(fetchVideos, 5000); // Refresh video list every 5 seconds
 </script>
 </body>
 </html>
