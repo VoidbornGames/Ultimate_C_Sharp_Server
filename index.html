@@ -16,47 +16,76 @@ body{display:flex;height:100vh;background:#0f172a;color:#f1f5f9;}
 .main{flex:1;display:flex;flex-direction:column;}
 .topbar{background:#1e293b;padding:15px 25px;border-bottom:1px solid #334155;font-weight:500;}
 .content{flex:1;padding:25px;overflow-y:auto;}
-.card{background:#1e293b;border-radius:8px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.3);}
+.card{background:#1e293b;border-radius:8px;padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.3);margin-bottom:20px;}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;}
 .stat-box{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:20px;text-align:center;}
 .stat-box strong{display:block;color:#94a3b8;font-size:.9em;margin-bottom:8px;}
 .stat-box p{font-size:1.3em;font-weight:600;color:#fff;}
-.commands{display:flex;flex-wrap:wrap;gap:12px;}
-.commands code{background:#334155;padding:8px 14px;border-radius:6px;font-size:.85em;color:#f1f5f9;}
 .logs{max-height:300px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:12px;font-size:.85em;color:#38bdf8;}
 footer{text-align:center;padding:15px;font-size:.8em;color:#64748b;}
 .tab-content{display:none;}
 .tab-content.active{display:block;}
 
 /* CHARTS */
-.chart-row {
+.chart-row { display: flex; flex-wrap: nowrap; gap: 20px; margin: 20px 0; }
+.chart-container { flex: 1; background: #1e293b; padding: 10px; border-radius: 8px; height: 180px; min-width: 0; }
+canvas { width: 100% !important; height: 100% !important; }
+
+/* VIDEOS */
+.video-card { background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px; text-align:center; cursor:pointer; transition:.2s; }
+.video-card:hover { border-color:#3b82f6; transform:scale(1.02);}
+.video-card video { width:100%; max-height:150px; border-radius:6px; }
+.card h3 { color: #f1f5f9; margin-bottom: 12px; font-size: 1.1em; }
+
+/* NEW: Video Thumbnail Style */
+.video-thumbnail {
+  background-color: #1a1a1a;
   display: flex;
-  flex-wrap: nowrap;   /* prevent stacking */
-  gap: 20px;           /* space between charts */
-  margin: 20px 0;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 14px;
+  height: 150px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 6px;
+  margin-bottom: 8px;
 }
 
-.chart-container {
-  flex: 1;             /* equal width */
-  background: #1e293b;
-  padding: 10px;
-  border-radius: 8px;
-  height: 180px;       /* smaller height for compact look */
-  min-width: 0;        /* prevents flex items from overflowing */
+/* Upload inputs and buttons */
+input[type="text"] {
+    width: calc(100% - 20px);
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #f1f5f9;
+    font-size: 0.95em;
+    margin-bottom: 10px;
 }
-canvas {
-  width: 100% !important;
-  height: 100% !important;
+
+button {
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
 }
+
+button:hover { background: #2563eb; }
+
+#urlUploadStatus { margin-top: 6px; font-size: 0.9em; color: #38bdf8; }
 </style>
 </head>
 <body>
-
 <aside class="sidebar">
   <h1>UltimateServer</h1>
   <div class="nav-item active" data-tab="statsTab">Stats</div>
-  <div class="nav-item" data-tab="commandsTab">Commands</div>
   <div class="nav-item" data-tab="logsTab">Logs</div>
+  <div class="nav-item" data-tab="videosTab">Videos</div>
 </aside>
 
 <div class="main">
@@ -74,21 +103,10 @@ canvas {
         <div class="stat-box"><strong>Disk Usage</strong><p id="diskUsage">Loading...</p></div>
         <div class="stat-box"><strong>Network</strong><p id="networkUsage">Loading...</p></div>
       </div>
-
       <!-- Graphs Side by Side -->
       <div class="chart-row">
         <div class="chart-container"><canvas id="cpuChart"></canvas></div>
         <div class="chart-container"><canvas id="memoryChart"></canvas></div>
-      </div>
-    </div>
-
-    <!-- Commands -->
-    <div class="tab-content" id="commandsTab">
-      <div class="card">
-        <div class="commands">
-          <code>createUser</code><code>loginUser</code><code>listUsers</code>
-          <code>say</code><code>makeUUID</code><code>stats</code>
-        </div>
       </div>
     </div>
 
@@ -97,6 +115,27 @@ canvas {
       <div class="card">
         <div class="logs" id="serverLogs">Loading logs...</div>
       </div>
+    </div>
+
+    <!-- Videos -->
+    <div class="tab-content" id="videosTab">
+      <div class="card">
+        <video id="videoPlayer" controls style="width:100%;max-height:400px;background:#000;border-radius:8px;display:none;">
+          <source id="videoSource" src="" type="video/mp4">
+        </video>
+        <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">Loading video...</div>
+      </div>
+
+      <!-- Upload from URL -->
+      <div class="card">
+        <h3>Upload Video from URL</h3>
+        <input type="text" id="videoUrlInput" placeholder="Enter video URL">
+        <button onclick="uploadVideoFromUrl()">Download</button>
+        <p id="urlUploadStatus"></p>
+      </div>
+
+      <!-- Video List -->
+      <div class="stats" id="videoList"></div>
     </div>
   </div>
   <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
@@ -119,93 +158,145 @@ tabs.forEach(tab=>tab.addEventListener('click',()=>{activateTab(tab.dataset.tab)
 window.addEventListener('hashchange',()=>{activateTab(location.hash.substring(1)||'statsTab')});
 activateTab(location.hash.substring(1)||'statsTab');
 
-// ===== DYNAMIC BASE URL =====
-// Use the same host and port as this page, so if you change server port it still works
 const baseUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}`;
 
-// FETCH LOGIC
-async function fetchStats(){
-  try{
-    let res=await fetch(`${baseUrl}/stats`);
-    let data=await res.json();
-    document.getElementById("uptime").textContent=data.uptime;
-    document.getElementById("onlineUsers").textContent=data.users;
-    document.getElementById("maxConnections").textContent=data.maxConnections||"N/A";
-    document.getElementById("protocol").textContent=data.protocol;
-  }catch{
-    ["uptime","onlineUsers","maxConnections","protocol"].forEach(id=>document.getElementById(id).textContent="Unavailable");
+// Placeholder SVG as a data URI
+const placeholderSvg = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%231a1a1a'/%3E%3Ctext x='50' y='50' font-family='sans-serif' font-size='14' fill='%23888' text-anchor='middle' dy='.3em'%3EVideo%3C/text%3E%3C/svg%3E";
+
+// ===== VIDEOS =====
+async function fetchVideos(){
+  try {
+    let res = await fetch(`${baseUrl}/videos`);
+    if(!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    let videos = await res.json();
+    const videoList = document.getElementById("videoList");
+    videoList.innerHTML = "";
+    
+    if(videos.length === 0) {
+        videoList.innerHTML = "<p style='color: #888; text-align: center; grid-column: 1/-1;'>No videos uploaded yet.</p>";
+        return;
+    }
+
+    videos.forEach(v=>{
+      const div = document.createElement("div");
+      div.className = "video-card";
+      
+      // Create a thumbnail div
+      const thumbnail = document.createElement("div");
+      thumbnail.className = "video-thumbnail";
+      thumbnail.style.backgroundImage = `url('${placeholderSvg}')`;
+      
+      const title = document.createElement("p");
+      title.textContent = v;
+      title.style.margin = "0";
+      title.style.overflow = "hidden";
+      title.style.textOverflow = "ellipsis";
+      title.style.whiteSpace = "nowrap";
+      title.style.color = "#f1f5f9";
+      
+      div.appendChild(thumbnail);
+      div.appendChild(title);
+      
+      // Add click event to load video in the main player
+      div.onclick = () => {
+        const videoUrl = `${baseUrl}/videos/${v}`;
+        const videoPlayer = document.getElementById("videoPlayer");
+        const videoSource = document.getElementById("videoSource");
+        const loadingMsg = document.getElementById("loadingMsg");
+        
+        // Show loading message, hide player
+        videoPlayer.style.display = "none";
+        loadingMsg.style.display = "block";
+        loadingMsg.textContent = "Loading video...";
+        
+        // Set video source and load
+        videoSource.src = videoUrl;
+        videoPlayer.load();
+        
+        // Handle video load events
+        videoPlayer.oncanplay = () => {
+          videoPlayer.style.display = "block";
+          loadingMsg.style.display = "none";
+        };
+        
+        videoPlayer.onerror = () => {
+          loadingMsg.textContent = "Error loading video. The file might be corrupt or in an unsupported format.";
+        };
+      };
+      
+      videoList.appendChild(div);
+    });
+  } catch(err){ 
+    console.error("Error fetching videos:", err);
+    const videoList = document.getElementById("videoList");
+    videoList.innerHTML = "<p style='color: #ff5555; text-align: center; grid-column: 1/-1;'>Error loading videos. Please refresh the page.</p>";
   }
 }
 
-// Resources + Graphs
-const cpuCtx=document.getElementById('cpuChart').getContext('2d');
-const memCtx=document.getElementById('memoryChart').getContext('2d');
+async function uploadVideoFromUrl(){
+  const urlInput = document.getElementById("videoUrlInput");
+  const status = document.getElementById("urlUploadStatus");
+  const url = urlInput.value.trim();
+  if(!url){ status.textContent="Please enter a URL"; return; }
+  status.textContent = "Downloading...";
+  try {
+    let res = await fetch(`${baseUrl}/upload-url`, { 
+      method:"POST", 
+      headers:{"Content-Type":"application/json"}, 
+      body: JSON.stringify({url: url}) 
+    });
+    if(res.ok){ 
+      status.textContent="Video downloaded successfully!"; 
+      urlInput.value = ''; // Clear the input
+      fetchVideos(); 
+    } 
+    else { 
+      const errorText = await res.text();
+      status.textContent="Download failed: " + errorText; 
+    }
+  } catch(err){ status.textContent="Error: "+err.message; }
+}
 
-const cpuChart = new Chart(cpuCtx, {
-  type: 'line', data:{labels:[],datasets:[{label:'CPU %',data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2} ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true, max:200} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } } });
-const memChart = new Chart(memCtx, {
-  type:'line', data:{labels:[], datasets:[{label:'Memory MB',data:[],borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.3)',fill:true,tension:0.3,borderWidth:2,pointRadius:2}]}, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{display:false}, y:{beginAtZero:true} }, plugins:{ legend:{ labels:{ color:'#fff', font:{ size:12 } } } } }
-});
-
-// Logs
-async function fetchLogs() {
-    try {
-        let response = await fetch(`${baseUrl}/logs`);
-        if (!response.ok) throw new Error("Failed to fetch logs");
-        let data = await response.json();
-        const logsContainer = document.getElementById('serverLogs');
-        const isAtBottom = logsContainer.scrollHeight - logsContainer.scrollTop <= logsContainer.clientHeight + 10;
-        logsContainer.innerHTML = '';
-        data.forEach(line => { const div=document.createElement('div'); div.textContent=line; logsContainer.appendChild(div); });
-        if (isAtBottom) logsContainer.scrollTop = logsContainer.scrollHeight;
-    } catch { document.getElementById('serverLogs').textContent='Unable to load logs'; }
+// ===== STATS =====
+async function fetchStats(){
+  try {
+    let res = await fetch(`${baseUrl}/stats`);
+    if(!res.ok) return;
+    let data = await res.json();
+    document.getElementById("uptime").textContent = data.uptime || "N/A";
+    document.getElementById("protocol").textContent = data.protocol || "N/A";
+    document.getElementById("onlineUsers").textContent = data.users || "0";
+    document.getElementById("maxConnections").textContent = data.maxConnections || "0";
+  } catch(err){ console.log(err); }
 }
 
 async function fetchResources(){
-  try{
+  try {
     let res = await fetch(`${baseUrl}/system`);
+    if(!res.ok) return;
     let data = await res.json();
-
-    let cpu = (data.cpuUsage*100).toFixed(1);
-    let mem = data.memoryMB.toFixed(1);
-    let disk = data.diskUsedGB?.toFixed(1) || "N/A";
-    let diskTotal = data.diskTotalGB?.toFixed(1) || "N/A";
-    let netUp = (data.netUploadKBs || 0).toFixed(1);
-    let netDown = (data.netDownloadKBs || 0).toFixed(1);
-
-    document.getElementById("cpuUsage").textContent = cpu + "%";
-    document.getElementById("memoryUsage").textContent = mem + " MB";
-    document.getElementById("diskUsage").textContent = disk + " / " + diskTotal + " GB";
-    document.getElementById("networkUsage").textContent = `${netUp} ↑ / ${netDown} ↓ KB/s`;
-
-    // CPU & Memory graphs
-    const ts = new Date().toLocaleTimeString();
-    if(cpuChart.data.labels.length>20){ cpuChart.data.labels.shift(); cpuChart.data.datasets[0].data.shift(); }
-    if(memChart.data.labels.length>20){ memChart.data.labels.shift(); memChart.data.datasets[0].data.shift(); }
-
-    cpuChart.data.labels.push(ts); cpuChart.data.datasets[0].data.push(cpu); cpuChart.update();
-    memChart.data.labels.push(ts); memChart.data.datasets[0].data.push(mem); memChart.update();
-
-  } catch {
-    ["cpuUsage","memoryUsage","diskUsage","networkUsage"].forEach(id => 
-      document.getElementById(id).textContent="Unavailable"
-    );
-  }
+    document.getElementById("cpuUsage").textContent = (data.cpuUsage || 0).toFixed(2) + "%";
+    document.getElementById("memoryUsage").textContent = (data.memoryMB || 0).toFixed(2) + " MB";
+    document.getElementById("diskUsage").textContent = (data.diskUsedGB || 0).toFixed(2) + " / " + (data.diskTotalGB || 0).toFixed(2) + " GB";
+    document.getElementById("networkUsage").textContent =  (data.netReceivedMB || 0).toFixed(2) + " MB ↓" + "   |   " + (data.netSentMB || 0).toFixed(2) + " MB ↑";
+  } catch(err){ console.log(err); }
 }
 
-// Add token to all fetch requests
-const token = localStorage.getItem("token");
-if(token) {
-    window.fetch = (orig => (url, opts={})=>{
-        opts.headers = {...opts.headers, "X-Auth-Token": token};
-        return orig(url, opts);
-    })(window.fetch);
+async function fetchLogs(){
+  try {
+    let res = await fetch(`${baseUrl}/logs`);
+    if(!res.ok) return;
+    let logs = await res.json();
+    const logsEl = document.getElementById("serverLogs");
+    logsEl.innerHTML = logs.map(l=>`<div>${l}</div>`).join("");
+    logsEl.scrollTop = logsEl.scrollHeight;
+  } catch(err){ console.log(err); }
 }
-    
-    
-// Run & refresh
-fetchStats(); fetchResources(); fetchLogs();
-setInterval(fetchStats,1000); setInterval(fetchResources,1000); setInterval(fetchLogs,1000);
+
+// Initial fetch & refresh
+fetchStats(); fetchResources(); fetchLogs(); fetchVideos();
+setInterval(()=>{ fetchStats(); fetchResources(); fetchLogs(); }, 5000);
+setInterval(fetchVideos, 30000);
 </script>
 </body>
 </html>
