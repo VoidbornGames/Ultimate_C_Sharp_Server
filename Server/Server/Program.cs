@@ -260,7 +260,7 @@ namespace UltimateServer
                                                 using var responseStream = await httpClient.GetStreamAsync(videoUrl);
                                                 using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
                                                 await responseStream.CopyToAsync(fileStream);
-                                                
+
                                                 await WriteStringResponse(response, $"Download successful: {fileName}");
                                             }
                                             else
