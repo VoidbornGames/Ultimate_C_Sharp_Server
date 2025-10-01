@@ -1,7 +1,7 @@
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> with real-time dashboard, user management, and video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir"><strong>Live Dashboard</strong></a></p>
-<p><a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="https://via.placeholder.com/800x400/1a1f2e/6366f1?text=UltimateServer+Dashboard" alt="Dashboard Screenshot"></a></p>
+<p><a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="[https://via.placeholder.com/800x400/1a1f2e/6366f1?text=UltimateServer+Dashboard](https://voidborn-games.ir/wp-content/uploads/2025/10/Screenshot-10_1_2025-11_55_47-PM.png)" alt="Dashboard Screenshot"></a></p>
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#features">Features</a></li>
