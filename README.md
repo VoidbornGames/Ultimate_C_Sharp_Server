@@ -1,5 +1,3 @@
-
-    <article class="markdown-body">
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> with real-time dashboard, user management, and video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir"><strong>Live Dashboard</strong></a></p>
