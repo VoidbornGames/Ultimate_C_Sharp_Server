@@ -1,36 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UltimateServer - README</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-            font-size: 16px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            color: #24292e;
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 45px;
-        }
-        .markdown-body {
-            box-sizing: border-box;
-            min-width: 200px;
-            max-width: 980px;
-            margin: 0 auto;
-            padding: 45px;
-        }
-        @media (max-width: 767px) {
-            .markdown-body {
-                padding: 15px;
-            }
-        }
-    </style>
-</head>
-<body>
+
     <article class="markdown-body">
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> with real-time dashboard, user management, and video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
@@ -275,5 +243,3 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver
 </ol>
 <p><strong>© 2025 UltimateServer · VoidbornGames</strong></p>
     </article>
-</body>
-</html>
