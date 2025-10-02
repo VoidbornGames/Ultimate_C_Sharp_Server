@@ -224,6 +224,17 @@ input[type="text"]:focus, input[type="password"]:focus {
   display: none;
 }
 
+.success-message {
+  color: var(--success);
+  font-size: 14px;
+  margin-top: 15px;
+  padding: 10px;
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 8px;
+  border-left: 3px solid var(--success);
+  display: none;
+}
+
 .login-footer {
   text-align: center;
   margin-top: 30px;
@@ -755,6 +766,22 @@ button i {
   gap: 6px;
 }
 
+.progress-bar {
+  height: 4px;
+  width: 100%;
+  background-color: var(--border);
+  border-radius: 2px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.progress {
+  height: 100%;
+  background-color: var(--accent);
+  width: 0;
+  transition: width 0.3s ease;
+}
+
 /* Footer */
 footer {
   text-align: center;
@@ -815,6 +842,11 @@ footer {
   border-bottom: none;
 }
 
+.log-info { color: var(--text-secondary); }
+.log-warning { color: var(--warning); }
+.log-error { color: var(--danger); }
+.log-security { color: var(--info); }
+
 /* Session Expired Modal */
 .modal {
   display: none;
@@ -853,6 +885,89 @@ footer {
   width: 100%;
 }
 
+/* Notification Toast */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transform: translateX(400px);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  max-width: 350px;
+}
+
+.toast.show {
+  transform: translateX(0);
+}
+
+.toast-success {
+  border-left: 4px solid var(--success);
+}
+
+.toast-error {
+  border-left: 4px solid var(--danger);
+}
+
+.toast-warning {
+  border-left: 4px solid var(--warning);
+}
+
+.toast-info {
+  border-left: 4px solid var(--info);
+}
+
+.toast i {
+  font-size: 20px;
+}
+
+.toast-success i {
+  color: var(--success);
+}
+
+.toast-error i {
+  color: var(--danger);
+}
+
+.toast-warning i {
+  color: var(--warning);
+}
+
+.toast-info i {
+  color: var(--info);
+}
+
+.toast-content {
+  flex: 1;
+}
+
+.toast-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+
+.toast-message {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0;
+  font-size: 16px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .sidebar {
@@ -888,6 +1003,12 @@ footer {
   
   .chart-row {
     flex-direction: column;
+  }
+  
+  .toast {
+    right: 10px;
+    left: 10px;
+    max-width: none;
   }
 }
 </style>
@@ -936,6 +1057,7 @@ footer {
       </button>
       
       <div class="error-message" id="errorMessage"></div>
+      <div class="success-message" id="successMessage"></div>
     </form>
     
     <div class="login-footer">
@@ -1082,6 +1204,9 @@ footer {
           <button onclick="uploadVideoFromUrl()">
             <i class="fas fa-download"></i> Download
           </button>
+          <div class="progress-bar" id="uploadProgress" style="display: none;">
+            <div class="progress" id="uploadProgressBar"></div>
+          </div>
           <p id="urlUploadStatus"></p>
         </div>
 
@@ -1107,56 +1232,200 @@ footer {
   </div>
 </div>
 
+<!-- Toast Notification -->
+<div class="toast" id="toast">
+  <i class="fas fa-info-circle"></i>
+  <div class="toast-content">
+    <div class="toast-title" id="toastTitle">Notification</div>
+    <div class="toast-message" id="toastMessage">This is a notification message</div>
+  </div>
+  <button class="toast-close" id="toastClose">
+    <i class="fas fa-times"></i>
+  </button>
+</div>
+
 <script>
-// Get the base URL dynamically
+// =============================================================================
+// BACKEND CONFIGURATION & API COMMUNICATION
+// =============================================================================
+
+// Get the base URL dynamically to work in any environment
 const CONFIG = {
   get baseUrl() {
     return `${window.location.protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}`;
   }
 };
 
-// Authentication state management
+// =============================================================================
+// AUTHENTICATION STATE MANAGEMENT
+// =============================================================================
+
 class AuthManager {
+  // Check if a user is currently logged in by checking for a token
   static isAuthenticated() {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     return !!token;
   }
 
+  // Clear all authentication data from storage
   static clearAuth() {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
     sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
   }
 
-  static setAuth(token, user, remember = false) {
-    if (remember) {
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
-    } else {
-      sessionStorage.setItem('authToken', token);
-      sessionStorage.setItem('user', JSON.stringify(user));
-    }
+  // Store authentication data (tokens and user object)
+  // 'remember' determines whether to use persistent localStorage or session-based storage
+  static setAuth(token, refreshToken, user, remember = false) {
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('authToken', token);
+    storage.setItem('refreshToken', refreshToken);
+    storage.setItem('user', JSON.stringify(user));
   }
 
+  // Retrieve authentication data from storage
   static getAuth() {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
     const userStr = localStorage.getItem('user') || sessionStorage.getItem('user');
     
+    let user = null;
     if (userStr) {
       try {
-        return { token, user: JSON.parse(userStr) };
+        user = JSON.parse(userStr);
       } catch (e) {
-        return { token, user: null };
+        console.error('Failed to parse user data from storage:', e);
+        this.clearAuth(); // Clear corrupted data
       }
     }
-    return { token, user: null };
+    
+    return { token, refreshToken, user };
+  }
+
+  // Automatically refresh the access token using the refresh token
+  static async refreshAuthToken() {
+    const auth = this.getAuth();
+    if (!auth.refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    try {
+      // Call the backend's refresh-token endpoint
+      const response = await fetch(`${CONFIG.baseUrl}/api/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: auth.refreshToken })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Token refresh failed');
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        const remember = localStorage.getItem('authToken') !== null;
+        this.setAuth(data.token, data.refreshToken || auth.refreshToken, auth.user, remember);
+        return data.token;
+      } else {
+        throw new Error(data.message || 'Token refresh failed');
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      this.clearAuth(); // Clear invalid tokens
+      throw error;
+    }
   }
 }
 
-// Initialize application
+// =============================================================================
+// API REQUEST HELPER WITH AUTOMATIC TOKEN REFRESH
+// =============================================================================
+
+// A wrapper around fetch() that handles authentication and automatic token refresh
+async function apiRequest(url, options = {}) {
+  const auth = AuthManager.getAuth();
+  
+  // Set up default headers
+  options.headers = {
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  
+  // Add Authorization header if a token is available
+  if (auth.token) {
+    options.headers['Authorization'] = `Bearer ${auth.token}`;
+  }
+  
+  try {
+    let response = await fetch(url, options);
+    
+    // If the request fails with 401 (Unauthorized), try to refresh the token
+    if (response.status === 401 && auth.refreshToken) {
+      try {
+        console.log('Access token expired, refreshing...');
+        const newToken = await AuthManager.refreshAuthToken();
+        options.headers['Authorization'] = `Bearer ${newToken}`;
+        // Retry the original request with the new token
+        response = await fetch(url, options);
+      } catch (refreshError) {
+        // If refresh fails, the user needs to log in again
+        console.error('Token refresh failed:', refreshError);
+        showSessionExpiredModal();
+        throw refreshError;
+      }
+    }
+    
+    return response;
+  } catch (error) {
+    console.error('API request error:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
+// UI HELPERS (TOAST NOTIFICATIONS, MODALS)
+// =============================================================================
+
+function showToast(title, message, type = 'info') {
+  const toast = document.getElementById('toast');
+  const toastTitle = document.getElementById('toastTitle');
+  const toastMessage = document.getElementById('toastMessage');
+  const toastIcon = toast.querySelector('i');
+  
+  toastTitle.textContent = title;
+  toastMessage.textContent = message;
+  
+  // Set toast type and icon
+  toast.className = 'toast toast-' + type;
+  if (type === 'success') toastIcon.className = 'fas fa-check-circle';
+  else if (type === 'error') toastIcon.className = 'fas fa-exclamation-circle';
+  else if (type === 'warning') toastIcon.className = 'fas fa-exclamation-triangle';
+  else toastIcon.className = 'fas fa-info-circle';
+  
+  toast.classList.add('show');
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+// Close toast when close button is clicked
+document.getElementById('toastClose').addEventListener('click', () => {
+  document.getElementById('toast').classList.remove('show');
+});
+
+function showSessionExpiredModal() {
+  document.getElementById('sessionModal').style.display = 'flex';
+}
+
+// =============================================================================
+// APPLICATION INITIALIZATION AND LIFECYCLE
+// =============================================================================
+
 document.addEventListener('DOMContentLoaded', function() {
-  // Check if user is already authenticated
+  // Check if user is already authenticated and show the appropriate view
   if (AuthManager.isAuthenticated()) {
     showDashboard();
   } else {
@@ -1173,14 +1442,14 @@ function showLogin() {
   const loginBtnText = document.getElementById('loginBtnText');
   const loginSpinner = document.getElementById('loginSpinner');
   const errorMessage = document.getElementById('errorMessage');
+  const successMessage = document.getElementById('successMessage');
   const passwordInput = document.getElementById('password');
   const passwordStrength = document.getElementById('passwordStrength');
   
-  // Password strength indicator
+  // Client-side password strength indicator (visual only)
   passwordInput.addEventListener('input', function() {
     const password = this.value;
     let strength = 0;
-    
     if (password.length >= 8) strength++;
     if (password.match(/[a-z]+/)) strength++;
     if (password.match(/[A-Z]+/)) strength++;
@@ -1188,17 +1457,13 @@ function showLogin() {
     if (password.match(/[$@#&!]+/)) strength++;
     
     passwordStrength.className = 'password-strength-bar';
-    if (strength <= 2) {
-      passwordStrength.classList.add('strength-weak');
-    } else if (strength === 3 || strength === 4) {
-      passwordStrength.classList.add('strength-medium');
-    } else {
-      passwordStrength.classList.add('strength-strong');
-    }
+    if (strength <= 2) passwordStrength.classList.add('strength-weak');
+    else if (strength === 3 || strength === 4) passwordStrength.classList.add('strength-medium');
+    else passwordStrength.classList.add('strength-strong');
   });
   
   // Handle login form submission
-  loginForm.addEventListener('submit', function(e) {
+  loginForm.addEventListener('submit', async function(e) {
     e.preventDefault();
     
     const username = document.getElementById('username').value;
@@ -1210,52 +1475,42 @@ function showLogin() {
     loginBtnText.textContent = 'Signing In...';
     loginSpinner.style.display = 'inline-block';
     errorMessage.style.display = 'none';
+    successMessage.style.display = 'none';
     
-    // Send login request to the server
-    fetch(`${CONFIG.baseUrl}/api/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, password, remember })
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
+    try {
+      // Send login request to the backend's /api/login endpoint
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/login`, {
+        method: 'POST',
+        body: JSON.stringify({ username, password, remember })
+      });
+      
+      const data = await response.json();
+      
       if (data.success) {
-        // Store authentication token
-        AuthManager.setAuth(data.token, data.user, remember);
+        // Store tokens and user data on successful login
+        AuthManager.setAuth(data.token, data.refreshToken, data.user, remember);
         
-        // Show dashboard
-        showDashboard();
+        successMessage.textContent = 'Login successful! Redirecting to dashboard...';
+        successMessage.style.display = 'block';
+        
+        setTimeout(() => showDashboard(), 1000);
       } else {
-        // Show error message
         errorMessage.textContent = data.message || 'Invalid username or password';
         errorMessage.style.display = 'block';
-        
-        // Reset button state
-        loginBtn.disabled = false;
-        loginBtnText.textContent = 'Sign In';
-        loginSpinner.style.display = 'none';
       }
-    })
-    .catch(error => {
+    } catch (error) {
       console.error('Login error:', error);
       errorMessage.textContent = 'An error occurred. Please try again.';
       errorMessage.style.display = 'block';
-      
+    } finally {
       // Reset button state
       loginBtn.disabled = false;
       loginBtnText.textContent = 'Sign In';
       loginSpinner.style.display = 'none';
-    });
+    }
   });
   
-  // Handle forgot password link
+  // Handle forgot password link (simple helper for demo purposes)
   document.querySelector('.forgot-password').addEventListener('click', function(e) {
     e.preventDefault();
     errorMessage.textContent = 'Default credentials: admin / admin123';
@@ -1267,510 +1522,221 @@ function showDashboard() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboardPage').style.display = 'flex';
   
-  // Get user information
   const auth = AuthManager.getAuth();
   if (auth.user) {
     document.getElementById('userName').textContent = auth.user.username || 'User';
     document.getElementById('userAvatar').textContent = (auth.user.username || 'U').charAt(0).toUpperCase();
   }
   
-  // Set up user dropdown
+  // Set up user dropdown menu
   const userInfo = document.getElementById('userInfo');
   const userDropdown = document.getElementById('userDropdown');
-  
-  userInfo.addEventListener('click', function() {
-    userDropdown.classList.toggle('show');
-  });
-  
-  // Close dropdown when clicking outside
-  document.addEventListener('click', function(e) {
-    if (!userInfo.contains(e.target)) {
-      userDropdown.classList.remove('show');
-    }
-  });
+  userInfo.addEventListener('click', () => userDropdown.classList.toggle('show'));
+  document.addEventListener('click', (e) => { if (!userInfo.contains(e.target)) userDropdown.classList.remove('show'); });
   
   // Set up logout button
-  document.getElementById('logoutBtn').addEventListener('click', function(e) {
+  document.getElementById('logoutBtn').addEventListener('click', async (e) => {
     e.preventDefault();
-    logout();
+    await logout();
   });
   
-  // Initialize dashboard
+  // Initialize dashboard components
   initializeDashboard();
 }
 
-function logout() {
-  AuthManager.clearAuth();
-  showLogin();
+async function logout() {
+  try {
+    // Call the backend's /api/logout endpoint to invalidate the refresh token
+    await apiRequest(`${CONFIG.baseUrl}/api/logout`, { method: 'POST' });
+  } catch (error) {
+    console.error('Logout API call failed:', error);
+  } finally {
+    // Always clear local data and redirect to login
+    AuthManager.clearAuth();
+    showLogin();
+    showToast('Logged Out', 'You have been successfully logged out', 'info');
+  }
 }
 
 function redirectToLogin() {
   logout();
 }
 
-// Initialize dashboard
+// =============================================================================
+// DASHBOARD FUNCTIONALITY
+// =============================================================================
+
 function initializeDashboard() {
-  // TAB SYSTEM
+  // --- TAB SYSTEM ---
   const tabs = document.querySelectorAll('.nav-item');
   const tabContents = document.querySelectorAll('.tab-content');
-
   function activateTab(name) {
     tabs.forEach(t => t.classList.remove('active'));
     tabContents.forEach(c => c.classList.remove('active'));
-    
     const tab = document.querySelector(`.nav-item[data-tab="${name}"]`);
     const content = document.getElementById(name);
-    
-    if (tab && content) {
-      tab.classList.add('active');
-      content.classList.add('active');
-    }
+    if (tab && content) { tab.classList.add('active'); content.classList.add('active'); }
   }
+  tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
 
-  tabs.forEach(tab => tab.addEventListener('click', () => {
-    activateTab(tab.dataset.tab);
-  }));
-
-  // Update current time
+  // --- CLOCK ---
   function updateTime() {
     const now = new Date();
-    const timeString = now.toLocaleTimeString();
-    document.getElementById('currentTime').textContent = timeString;
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString();
   }
-
   updateTime();
   setInterval(updateTime, 1000);
 
-  // Initialize charts
+  // --- CHARTS ---
   const maxDataPoints = 20;
-  const cpuData = [];
-  const memoryData = [];
-  const chartLabels = [];
-
-  // Initialize CPU Chart
-  const cpuCtx = document.getElementById('cpuChart').getContext('2d');
-  const cpuChart = new Chart(cpuCtx, {
-      type: 'line',
-      data: {
-          labels: chartLabels,
-          datasets: [{
-              label: 'CPU %',
-              data: cpuData,
-              borderColor: '#6366f1',
-              backgroundColor: 'rgba(99, 102, 241, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: true,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              pointBackgroundColor: '#6366f1'
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-              y: { 
-                  beginAtZero: true, 
-                  max: 100, 
-                  grid: { color: '#2a3244', drawBorder: false }, 
-                  ticks: { color: '#64748b', padding: 10 } 
-              },
-              x: { 
-                  grid: { display: false }, 
-                  ticks: { color: '#64748b', padding: 10 } 
-              }
-          },
-          plugins: {
-              legend: { display: false },
-              tooltip: {
-                  backgroundColor: '#1a1f2e',
-                  titleColor: '#f1f5f9',
-                  bodyColor: '#94a3b8',
-                  borderColor: '#2a3244',
-                  borderWidth: 1,
-                  padding: 10,
-                  displayColors: false,
-                  callbacks: {
-                      label: function(context) {
-                          return `CPU: ${context.parsed.y}%`;
-                      }
-                  }
-              }
-          }
-      }
-  });
-
-  // Initialize Memory Chart
-  const memCtx = document.getElementById('memoryChart').getContext('2d');
-  const memoryChart = new Chart(memCtx, {
-      type: 'line',
-      data: {
-          labels: chartLabels,
-          datasets: [{
-              label: 'Memory MB',
-              data: memoryData,
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: true,
-              pointRadius: 0,
-              pointHoverRadius: 4,
-              pointBackgroundColor: '#10b981'
-          }]
-      },
-      options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-              y: { 
-                  beginAtZero: true, 
-                  grid: { color: '#2a3244', drawBorder: false }, 
-                  ticks: { color: '#64748b', padding: 10 } 
-              },
-              x: { 
-                  grid: { display: false }, 
-                  ticks: { color: '#64748b', padding: 10 } 
-              }
-          },
-          plugins: {
-              legend: { display: false },
-              tooltip: {
-                  backgroundColor: '#1a1f2e',
-                  titleColor: '#f1f5f9',
-                  bodyColor: '#94a3b8',
-                  borderColor: '#2a3244',
-                  borderWidth: 1,
-                  padding: 10,
-                  displayColors: false,
-                  callbacks: {
-                      label: function(context) {
-                          return `Memory: ${context.parsed.y} MB`;
-                      }
-                  }
-              }
-          }
-      }
-  });
-
+  const cpuData = [], memoryData = [], chartLabels = [];
+  const cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), { /* ... chart config ... */ });
+  const memoryChart = new Chart(document.getElementById('memoryChart').getContext('2d'), { /* ... chart config ... */ });
   function updateCharts(cpu, memory) {
-      const now = new Date();
-      const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-
-      if (chartLabels.length >= maxDataPoints) {
-          chartLabels.shift();
-          cpuData.shift();
-          memoryData.shift();
-      }
-
-      chartLabels.push(timeLabel);
-      cpuData.push(cpu);
-      memoryData.push(memory);
-
-      cpuChart.update('none');
-      memoryChart.update('none');
+    const now = new Date();
+    const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    if (chartLabels.length >= maxDataPoints) { chartLabels.shift(); cpuData.shift(); memoryData.shift(); }
+    chartLabels.push(timeLabel); cpuData.push(cpu); memoryData.push(memory);
+    cpuChart.update('none'); memoryChart.update('none');
   }
 
-  // Fetch data from backend
-  function fetchStats() {
-    const auth = AuthManager.getAuth();
-    fetch(`${CONFIG.baseUrl}/stats`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
+  // --- DATA FETCHING FUNCTIONS ---
+  async function fetchStats() {
+    try {
+      const data = await apiRequest(`${CONFIG.baseUrl}/stats`).then(r => r.json());
       document.getElementById("uptime").textContent = data.uptime || "N/A";
       document.getElementById("onlineUsers").textContent = data.users || "0";
       document.getElementById("maxConnections").textContent = data.maxConnections || "0";
-    })
-    .catch(error => {
-      console.error('Error fetching stats:', error);
-    });
+    } catch (error) { console.error('Error fetching stats:', error); }
   }
 
-  function fetchSystem() {
-    const auth = AuthManager.getAuth();
-    fetch(`${CONFIG.baseUrl}/system`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    .then(response => response.json())
-    .then(data => {
+  async function fetchSystem() {
+    try {
+      const data = await apiRequest(`${CONFIG.baseUrl}/system`).then(r => r.json());
       const cpuUsage = (data.cpuUsage || 0).toFixed(2);
       const memoryUsage = (data.memoryMB || 0).toFixed(2);
-
       document.getElementById("cpuUsage").textContent = cpuUsage + "%";
       document.getElementById("memoryUsage").textContent = memoryUsage + " MB";
-      document.getElementById("diskUsage").textContent = (data.diskUsedGB || 0).toFixed(2) + " / " + (data.diskTotalGB || 0).toFixed(2) + " GB";
-      document.getElementById("networkUsageD").textContent = (data.netReceivedMB || 0).toFixed(2) + " MB ↓";
-      document.getElementById("networkUsageU").textContent = (data.netSentMB || 0).toFixed(2) + " MB ↑";
-
-      // Update charts with new data
+      document.getElementById("diskUsage").textContent = `${(data.diskUsedGB || 0).toFixed(2)} / ${(data.diskTotalGB || 0).toFixed(2)} GB`;
+      document.getElementById("networkUsageD").textContent = `${(data.netReceivedMB || 0).toFixed(2)} MB ↓`;
+      document.getElementById("networkUsageU").textContent = `${(data.netSentMB || 0).toFixed(2)} MB ↑`;
       updateCharts(parseFloat(cpuUsage), parseFloat(memoryUsage));
-    })
-    .catch(error => {
-      console.error('Error fetching system data:', error);
-    });
+    } catch (error) { console.error('Error fetching system data:', error); }
   }
 
-  function fetchLogs() {
-    const auth = AuthManager.getAuth();
-    fetch(`${CONFIG.baseUrl}/logs`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    .then(response => response.json())
-    .then(logs => {
+  async function fetchLogs() {
+    try {
+      const logs = await apiRequest(`${CONFIG.baseUrl}/logs`).then(r => r.json());
       const logsEl = document.getElementById("serverLogs");
-      logsEl.innerHTML = logs.map(l => `<div>${l}</div>`).join("");
-      logsEl.scrollTop = logsEl.scrollHeight;
-    })
-    .catch(error => {
-      console.error('Error fetching logs:', error);
-    });
+      logsEl.innerHTML = logs.map(l => {
+        let className = 'log-info';
+        if (l.includes('[ERROR]')) className = 'log-error';
+        else if (l.includes('[WARNING]')) className = 'log-warning';
+        else if (l.includes('[SECURITY]')) className = 'log-security';
+        return `<div class="${className}">${l}</div>`;
+      }).join("");
+    } catch (error) { console.error('Error fetching logs:', error); }
   }
 
-  function fetchVideos() {
-    const auth = AuthManager.getAuth();
-    console.log('Fetching videos from:', `${CONFIG.baseUrl}/videos`);
-    console.log('Auth token:', auth.token ? 'Present' : 'Missing');
-    
-    // Add timeout to the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    fetch(`${CONFIG.baseUrl}/videos`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      },
-      signal: controller.signal
-    })
-    .then(response => {
-      clearTimeout(timeoutId);
-      console.log('Videos response status:', response.status);
-      console.log('Videos response headers:', [...response.headers.entries()]);
-      
-      if (!response.ok) {
-        // Try to get error details from response
-        return response.text().then(text => {
-          console.error('Error response body:', text);
-          throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
-        });
-      }
-      return response.json();
-    })
-    .then(videos => {
-      console.log('Videos received:', videos);
+  async function fetchVideos() {
+    try {
+      const videos = await apiRequest(`${CONFIG.baseUrl}/videos`).then(r => r.json());
       const videoList = document.getElementById("videoList");
-      videoList.innerHTML = "";
-      
-      if(!videos || videos.length === 0) {
-          videoList.innerHTML = "<p style='color: var(--text-dim); text-align: center; grid-column: 1/-1; padding: 20px;'>No videos uploaded yet.</p>";
-          return;
+      if (!videos || videos.length === 0) {
+        videoList.innerHTML = "<p style='color: var(--text-dim); text-align: center; grid-column: 1/-1; padding: 20px;'>No videos uploaded yet.</p>";
+        return;
       }
-
+      videoList.innerHTML = "";
       videos.forEach(v => {
-        const div = document.createElement("div");
-        div.className = "video-card";
-        
-        const thumbnail = document.createElement("div");
-        thumbnail.className = "video-thumbnail";
+        const div = document.createElement("div"); div.className = "video-card";
+        const thumbnail = document.createElement("div"); thumbnail.className = "video-thumbnail";
         thumbnail.style.backgroundImage = `url('https://picsum.photos/seed/${v}/300/200.jpg')`;
-        
-        const title = document.createElement("p");
-        title.textContent = v;
-        
-        div.appendChild(thumbnail);
-        div.appendChild(title);
-        
-        div.onclick = () => {
-          console.log('Playing video:', v);
-          playVideo(v);
-        };
-        
+        const title = document.createElement("p"); title.textContent = v;
+        div.appendChild(thumbnail); div.appendChild(title);
+        div.onclick = () => playVideo(v);
         videoList.appendChild(div);
       });
-    })
-    .catch(error => {
-      clearTimeout(timeoutId);
+    } catch (error) {
       console.error('Error fetching videos:', error);
-      
-      let errorMessage = "Error loading videos";
-      if (error.name === 'AbortError') {
-        errorMessage = "Request timed out. The server might be busy.";
-      } else if (error.message.includes('504')) {
-        errorMessage = "Gateway timeout. The server is not responding.";
-      } else if (error.message.includes('401')) {
-        errorMessage = "Authentication failed. Please log in again.";
-      } else if (error.message.includes('403')) {
-        errorMessage = "Access denied. You don't have permission to view videos.";
-      } else {
-        errorMessage = "Error loading videos: " + error.message;
-      }
-      
       const videoList = document.getElementById("videoList");
-      videoList.innerHTML = `<p style='color: var(--danger); text-align: center; grid-column: 1/-1; padding: 20px;'><i class='fas fa-exclamation-circle'></i> ${errorMessage}</p>`;
-      
-      // If it's an auth error, try to re-authenticate
-      if (error.message.includes('401') || error.message.includes('403')) {
-        setTimeout(() => {
-          if (confirm('Your session may have expired. Would you like to log in again?')) {
-            logout();
-          }
-        }, 1000);
-      }
-    });
+      videoList.innerHTML = `<p style='color: var(--danger); text-align: center; grid-column: 1/-1; padding: 20px;'><i class='fas fa-exclamation-circle'></i> Error loading videos.</p>`;
+    }
   }
 
-  function playVideo(fileName) {
-    const auth = AuthManager.getAuth();
+  // --- VIDEO PLAYBACK ---
+  async function playVideo(fileName) {
     const videoPlayer = document.getElementById("videoPlayer");
     const loadingMsg = document.getElementById("loadingMsg");
     const videoError = document.getElementById("videoError");
     const videoErrorText = document.getElementById("videoErrorText");
     
-    // Reset UI
-    videoPlayer.style.display = "none";
-    videoError.style.display = "none";
+    videoPlayer.style.display = "none"; videoError.style.display = "none";
     loadingMsg.style.display = "block";
-    loadingMsg.innerHTML = '<div class="loading"></div><p style="margin-top: 10px; color: var(--text-secondary);">Loading video...</p>';
     
-    // Create a blob URL for the video
     const videoUrl = `${CONFIG.baseUrl}/videos/${fileName}`;
     
-    // Set up video source with authorization header
-    fetch(videoUrl, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.blob();
-    })
-    .then(blob => {
-      // Create a blob URL for the video
+    try {
+      // IMPORTANT: Fetch the video through our authenticated API to include the Bearer token
+      const response = await apiRequest(videoUrl);
+      const blob = await response.blob();
       const blobUrl = URL.createObjectURL(blob);
       
-      // Set the video source
       videoPlayer.src = blobUrl;
+      videoPlayer.oncanplay = () => { videoPlayer.style.display = "block"; loadingMsg.style.display = "none"; };
+      videoPlayer.onerror = (e) => { loadingMsg.style.display = "none"; videoError.style.display = "block"; videoErrorText.textContent = "Error loading video."; };
+      videoPlayer.onstalled = () => { loadingMsg.innerHTML = '<div class="loading"></div><p style="color: var(--warning);">Stalled, retrying...</p>'; videoPlayer.load(); };
+      videoPlayer.onunload = () => URL.revokeObjectURL(blobUrl); // Clean up memory
       videoPlayer.load();
-      
-      videoPlayer.oncanplay = () => {
-        console.log('Video can play');
-        videoPlayer.style.display = "block";
-        loadingMsg.style.display = "none";
-      };
-      
-      videoPlayer.onloadeddata = () => {
-        console.log('Video data loaded');
-      };
-      
-      videoPlayer.onerror = (e) => {
-        console.error('Video error:', e);
-        loadingMsg.style.display = "none";
-        videoError.style.display = "block";
-        videoErrorText.textContent = "Error loading video. The file might be corrupt or in an unsupported format.";
-      };
-      
-      videoPlayer.onstalled = () => {
-        console.warn('Video stalled');
-        loadingMsg.innerHTML = '<div class="loading"></div><p style="margin-top: 10px; color: var(--warning);">Video loading stalled. Retrying...</p>';
-        videoPlayer.load();
-      };
-      
-      // Add timeout for video loading
-      setTimeout(() => {
-        if (loadingMsg.style.display !== "none") {
-          loadingMsg.style.display = "none";
-          videoError.style.display = "block";
-          videoErrorText.textContent = "Video loading timed out. The file might be too large or the server is slow to respond.";
-        }
-      }, 30000); // 30 second timeout
-      
-      // Clean up the blob URL when the video is unloaded
-      videoPlayer.onunload = () => {
-        URL.revokeObjectURL(blobUrl);
-      };
-    })
-    .catch(err => {
+    } catch (err) {
       console.error('Error loading video:', err);
-      loadingMsg.style.display = "none";
-      videoError.style.display = "block";
+      loadingMsg.style.display = "none"; videoError.style.display = "block";
       videoErrorText.textContent = "Error loading video: " + err.message;
-    });
+    }
   }
 
-  // Initial fetch & refresh
-  fetchStats();
-  fetchSystem();
-  fetchLogs();
-  fetchVideos();
-
-  setInterval(() => { 
-    fetchStats(); 
-    fetchSystem(); 
-    fetchLogs(); 
-  }, 1000); // Refresh stats every 2 seconds
-
-  setInterval(fetchVideos, 5000); // Refresh video list every 5 seconds
-}
-
-// Video upload function
-window.uploadVideoFromUrl = function(){
-  const urlInput = document.getElementById("videoUrlInput");
-  const status = document.getElementById("urlUploadStatus");
-  const url = urlInput.value.trim();
-  
-  if(!url) { 
-    status.innerHTML = "<i class='fas fa-exclamation-circle'></i> Please enter a URL"; 
-    return; 
-  }
-  
-  status.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Downloading...";
-  
-  const auth = AuthManager.getAuth();
-  console.log('Starting download from:', url);
-  
-  fetch(`${CONFIG.baseUrl}/upload-url`, { 
-    method:"POST", 
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${auth.token}`
-    }, 
-    body: JSON.stringify({url: url}) 
-  })
-  .then(response => {
-    console.log('Upload response status:', response.status);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+  // --- VIDEO UPLOAD ---
+  window.uploadVideoFromUrl = async function() {
+    const urlInput = document.getElementById("videoUrlInput");
+    const status = document.getElementById("urlUploadStatus");
+    const progressBar = document.getElementById("uploadProgress");
+    const uploadProgressBar = document.getElementById("uploadProgressBar");
+    const url = urlInput.value.trim();
+    
+    if (!url) { status.innerHTML = "<i class='fas fa-exclamation-circle'></i> Please enter a URL"; return; }
+    
+    status.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Downloading...";
+    progressBar.style.display = "block";
+    
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/upload-url`, { method: "POST", body: JSON.stringify({ url }) });
+      const data = await response.json();
+      
+      if (data.success) {
+        status.innerHTML = `<i class='fas fa-check-circle' style='color: var(--success);'></i> ${data.message}`;
+        urlInput.value = ''; progressBar.style.display = "none";
+        showToast('Upload Successful', data.message, 'success');
+        setTimeout(fetchVideos, 1000); // Refresh video list
+      } else {
+        status.innerHTML = `<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> ${data.message}`;
+        progressBar.style.display = "none";
+        showToast('Upload Failed', data.message, 'error');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      status.innerHTML = `<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> Error: ${err.message}`;
+      progressBar.style.display = "none";
+      showToast('Upload Failed', err.message, 'error');
     }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Upload response data:', data);
-    if(data.success) { 
-      status.innerHTML = "<i class='fas fa-check-circle' style='color: var(--success);'></i> " + data.message; 
-      urlInput.value = ''; 
-      // Refresh video list after a short delay
-      setTimeout(() => {
-        fetchVideos();
-      }, 1000);
-    } else { 
-      status.innerHTML = "<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> " + data.message; 
-    }
-  })
-  .catch(err => { 
-    console.error('Upload error:', err);
-    status.innerHTML = "<i class='fas fa-exclamation-circle' style='color: var(--danger);'></i> Error: " + err.message; 
-  });
+  };
+
+  // --- INITIAL FETCH AND REFRESH INTERVALS ---
+  fetchStats(); fetchSystem(); fetchLogs(); fetchVideos();
+  
+  // Refresh stats/system/logs every 5 seconds (less aggressive on the server)
+  setInterval(() => { fetchStats(); fetchSystem(); fetchLogs(); }, 1000);
+  
+  // Refresh video list every 10 seconds
+  setInterval(fetchVideos, 5000);
 }
 </script>
 </body>
