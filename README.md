@@ -1,8 +1,8 @@
 <div class="container">
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, and secure video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
-<p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir"><strong>Live Dashboard</strong></a></p>
-<p><a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="https://voidborn-games.ir/wp-content/uploads/2025/10/Screenshot-10_1_2025-11_55_47-PM.png" alt="Dashboard Screenshot"></a></p>
+<p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir" target="_blank"><strong>Live Dashboard</strong></a></p>
+<a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="https://voidborn-games.ir/wp-content/uploads/2025/10/Screenshot-10_1_2025-11_55_47-PM.png" alt="Dashboard Screenshot"></a>
 
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
@@ -30,6 +30,7 @@
 <li><strong>Service-Oriented Design</strong>: Decoupled services for improved maintainability and testability.</li>
 <li><strong>Dependency Injection</strong>: Clean, modular code with clear separation of concerns.</li>
 <li><strong>Asynchronous Performance</strong>: Full <code>async/await</code> implementation for high concurrency and non-blocking I/O.</li>
+<li><strong>Event-Driven Communication</strong>: A robust in-memory Event Bus for decoupled, scalable inter-service communication.</li>
 </ul>
 </div>
 
@@ -49,7 +50,7 @@
 <ul>
 <li><strong>In-Memory Caching</strong>: Reduces database/file I/O for frequently accessed data.</li>
 <li><strong>HTTP Response Compression</strong>: Automatically compresses responses to save bandwidth.</li>
-<li><strong>Connection Pooling</strong>: Efficiently manages and reuses network connections.</li>
+<li><strong>Connection Pooling Framework</strong>: Efficiently manages and reuses network connections.</li>
 <li><strong>Graceful Shutdown</strong>: Ensures data is saved and connections close properly on exit.</li>
 </ul>
 </div>
@@ -59,9 +60,9 @@
 <ul>
 <li>Modern, responsive dark-themed interface</li>
 <li>Real-time system monitoring (CPU, memory, disk, network)</li>
-<li>Live server logs viewer</li>
-<li>Video player with streaming support</li>
-<li>User authentication with JWT tokens</li>
+<li>Live server logs viewer with color-coded levels</li>
+<li>Video player with streaming support and progress tracking</li>
+<li>Secure user authentication with JWT tokens</li>
 <li>Mobile-friendly design</li>
 </ul>
 </div>
@@ -70,7 +71,7 @@
 <h3 id="-advanced-user-management">👥 Advanced User Management</h3>
 <ul>
 <li>Secure user registration and login system</li>
-<li>Role-based access control</li>
+<li>Role-based access control (RBAC)</li>
 <li>Session management with "remember me" functionality</li>
 <li>Password reset functionality via email token</li>
 <li>Two-Factor Authentication (2FA) support framework</li>
@@ -214,18 +215,18 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
 <h2 id="configuration">Configuration</h2>
 <p>The server uses a <code>config.json</code> file for configuration:</p>
 <pre><code class="language-json">{
-"Ip": "0.0.0.0",
-"MaxConnections": 50,
-"PasswordMinLength": 8,
-"RequireSpecialChars": true,
-"MaxFailedLoginAttempts": 5,
-"LockoutDurationMinutes": 30,
-"JwtExpiryHours": 24,
-"RefreshTokenDays": 7,
-"MaxRequestSizeMB": 100,
-"EnableCompression": true,
-"CacheExpiryMinutes": 15,
-"ConnectionPoolSize": 10
+  "Ip": "0.0.0.0",
+  "MaxConnections": 50,
+  "PasswordMinLength": 8,
+  "RequireSpecialChars": true,
+  "MaxFailedLoginAttempts": 5,
+  "LockoutDurationMinutes": 30,
+  "JwtExpiryHours": 24,
+  "RefreshTokenDays": 7,
+  "MaxRequestSizeMB": 100,
+  "EnableCompression": true,
+  "CacheExpiryMinutes": 15,
+  "ConnectionPoolSize": 10
 }</code></pre>
 
 <h3 id="configuration-options">Configuration Options</h3>
@@ -292,6 +293,14 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
 </ul>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="server-startup-issues">Server Startup Issues</h3>
+<p>If the server fails to start, it's often due to a dependency injection configuration error.</p>
+<ul>
+<li><strong>Check Logs</strong>: The console output will show the exact error message, such as "Unable to resolve service for type 'System.String'".</li>
+<li><strong>Verify Packages</strong>: Ensure the <code>Microsoft.Extensions.DependencyInjection</code> NuGet package is installed.</li>
+<li><strong>Check Program.cs</strong>: Make sure all services (like `FilePaths`, `ServerSettings`) are registered in the DI container.</li>
+</ul>
+
 <h3 id="videos-not-loading">Videos Not Loading</h3>
 <ol>
 <li>Check that the video file exists on the server</li>
