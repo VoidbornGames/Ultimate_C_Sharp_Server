@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using UltimateServer.Events; // <-- NEW: Event System Namespace
+using UltimateServer.Models;
 using UltimateServer.Services;
 
 namespace UltimateServer.Services
@@ -11,11 +13,17 @@ namespace UltimateServer.Services
     {
         private readonly string _videosFolder;
         private readonly Logger _logger;
+        private readonly IEventBus _eventBus;
 
-        public VideoService(string videosFolder = "videos", Logger logger = null)
+        // UPDATED CONSTRUCTOR: Accept FilePaths instead of a string
+        public VideoService(
+            FilePaths filePaths, // <-- Changed from string videosFolder
+            Logger logger,
+            IEventBus eventBus)
         {
-            _videosFolder = videosFolder;
-            _logger = logger ?? new Logger();
+            _videosFolder = filePaths.VideosFolder; // <-- Get the path from the object
+            _logger = logger;
+            _eventBus = eventBus;
             PrepareVideos();
         }
 
@@ -64,25 +72,22 @@ namespace UltimateServer.Services
             string videoDir = Path.Combine(AppContext.BaseDirectory, _videosFolder);
             Directory.CreateDirectory(videoDir);
 
-            // Get file name from URL or generate one
             string fileName = Path.GetFileName(new Uri(videoUrl).LocalPath);
             if (string.IsNullOrEmpty(fileName) || !fileName.Contains('.'))
             {
                 fileName = "downloaded_" + DateTime.Now.Ticks + ".mp4";
             }
 
-            // Sanitize filename
             fileName = string.Join("_", fileName.Split(Path.GetInvalidFileNameChars()));
             string filePath = Path.Combine(videoDir, fileName);
 
             _logger.Log($"📥 Starting download from: {videoUrl}");
 
             using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(10); // 10 minute timeout
+            httpClient.Timeout = TimeSpan.FromMinutes(10);
 
             try
             {
-                // Get the response headers first to check content type
                 using var responseMessage = await httpClient.GetAsync(videoUrl, HttpCompletionOption.ResponseHeadersRead);
 
                 if (!responseMessage.IsSuccessStatusCode)
@@ -91,14 +96,12 @@ namespace UltimateServer.Services
                     return (false, $"Download failed: HTTP {responseMessage.StatusCode}");
                 }
 
-                // Check if it's a video content type
                 string contentType = responseMessage.Content.Headers.ContentType?.MediaType ?? "";
                 if (!contentType.StartsWith("video/") && !contentType.Contains("octet-stream"))
                 {
                     _logger.Log($"⚠️ Warning: Content type is {contentType}, but proceeding anyway");
                 }
 
-                // Download the file
                 using var responseStream = await responseMessage.Content.ReadAsStreamAsync();
                 using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
 
@@ -112,8 +115,7 @@ namespace UltimateServer.Services
                     await fileStream.WriteAsync(buffer, 0, bytesRead);
                     downloadedBytes += bytesRead;
 
-                    // Log progress for large files
-                    if (totalBytes > 0 && downloadedBytes % (1024 * 1024) == 0) // Every MB
+                    if (totalBytes > 0 && downloadedBytes % (1024 * 1024) == 0)
                     {
                         double progress = (double)downloadedBytes / totalBytes * 100;
                         _logger.Log($"📥 Download progress: {progress:F1}%");
@@ -126,11 +128,15 @@ namespace UltimateServer.Services
                 if (new FileInfo(filePath).Length > 0)
                 {
                     _logger.Log($"✅ Video downloaded successfully: {fileName} ({new FileInfo(filePath).Length} bytes)");
+
+                    // NEW: Publish the VideoUploadedEvent
+                    await _eventBus.PublishAsync(new VideoUploadedEvent(fileName, videoUrl));
+
                     return (true, $"Download successful: {fileName}");
                 }
                 else
                 {
-                    File.Delete(filePath); // Remove empty file
+                    File.Delete(filePath);
                     _logger.LogError("Downloaded file is empty");
                     return (false, "Downloaded file is empty");
                 }
@@ -152,9 +158,19 @@ namespace UltimateServer.Services
             }
         }
 
+        // ... (The rest of the VideoService methods remain unchanged) ...
+        public bool IsVideoFile(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return false;
+
+            string extension = Path.GetExtension(filePath).ToLowerInvariant();
+            return extension == ".mp4" || extension == ".webm" || extension == ".ogg" ||
+                   extension == ".avi" || extension == ".mov" || extension == ".mkv";
+        }
+
         public string GetVideoFilePath(string fileName)
         {
-            // Validate filename to prevent directory traversal
             if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
             {
                 _logger.Log($"❌ Invalid filename requested: {fileName}");
@@ -163,13 +179,6 @@ namespace UltimateServer.Services
 
             string filePath = Path.Combine(AppContext.BaseDirectory, _videosFolder, fileName);
             return File.Exists(filePath) ? filePath : null;
-        }
-
-        private bool IsVideoFile(string filePath)
-        {
-            string extension = Path.GetExtension(filePath).ToLowerInvariant();
-            return extension == ".mp4" || extension == ".webm" || extension == ".ogg" ||
-                   extension == ".avi" || extension == ".mov" || extension == ".mkv";
         }
 
         public string GetContentType(string filePath)

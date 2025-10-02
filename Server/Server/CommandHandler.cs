@@ -23,8 +23,8 @@ namespace UltimateServer.Services
 
         private void RegisterCommands()
         {
-            AddCommand("createUser", CreateUserCommand);
-            AddCommand("loginUser", LoginUserCommand);
+            //AddCommand("createUser", CreateUserCommand);
+            //AddCommand("loginUser", LoginUserCommand);
             AddCommand("listUsers", ListUsersCommand);
             AddCommand("say", SayCommand);
             AddCommand("makeUUID", MakeUUIDCommand);

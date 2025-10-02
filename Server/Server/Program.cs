@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using UltimateServer.Models;
 using UltimateServer.Services;
+using UltimateServer.Events;
 
 namespace UltimateServer
 {
@@ -11,8 +13,6 @@ namespace UltimateServer
         private static int Port = 11001;
         private static int WebPort = 11002;
         private static CancellationTokenSource cts = new();
-
-        // FIX: Added a constant for the JWT Secret
         private const string JwtSecret = "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
 
         static async Task Main(string[] args)
@@ -22,49 +22,85 @@ namespace UltimateServer
             if (args.Length > 1 && int.TryParse(args[1], out int parsedPortWeb))
                 WebPort = parsedPortWeb;
 
-            // Initialize services
-            var logger = new Logger();
-            var configManager = new ConfigManager(logger: logger);
+            var services = new ServiceCollection();
 
-            // FIX: Explicitly pass the required arguments to the AuthenticationService constructor
-            var authService = new AuthenticationService(JwtSecret, configManager.Config, logger);
+            // --- REGISTER SINGLETON SERVICES ---
+            services.AddSingleton<Logger>();
+            services.AddSingleton(provider => new ConfigManager(logger: provider.GetRequiredService<Logger>()));
+            services.AddSingleton(provider => provider.GetRequiredService<ConfigManager>().Config);
+            services.AddSingleton<FilePaths>();
 
-            var userService = new UserService(logger: logger, authService: authService);
-            var videoService = new VideoService(logger: logger);
-            var commandHandler = new CommandHandler(userService, logger);
-            var httpServer = new HttpServer(WebPort, logger, userService, authService, videoService);
-            var tcpServer = new TcpServer(Port, configManager.Config.Ip, logger, commandHandler);
+            // CREATE AND REGISTER THE SERVERSETTINGS OBJECT
+            var serverSettings = new ServerSettings
+            {
+                Port = Port,
+                WebPort = WebPort
+            };
+            services.AddSingleton(serverSettings);
 
-            // Load initial data
+            services.AddSingleton<CacheService>();
+            services.AddSingleton<IEventBus, InMemoryEventBus>();
+            services.AddSingleton<NotificationService>();
+
+            // --- REGISTER SCOPED SERVICES ---
+            services.AddScoped<AuthenticationService>(provider =>
+                new AuthenticationService(JwtSecret, provider.GetRequiredService<ServerConfig>(), provider.GetRequiredService<Logger>()));
+            services.AddScoped<ValidationService>();
+            services.AddScoped<UserService>();
+            services.AddScoped<VideoService>();
+            services.AddScoped<CommandHandler>();
+            services.AddScoped<HttpServer>();
+            services.AddScoped<TcpServer>();
+
+            var serviceProvider = services.BuildServiceProvider();
+
+            // --- SUBSCRIBE EVENT HANDLERS ---
+            var eventBus = serviceProvider.GetRequiredService<IEventBus>();
+            var notificationService = serviceProvider.GetRequiredService<NotificationService>();
+
+            eventBus.Subscribe<UserRegisteredEvent>(notificationService);
+            eventBus.Subscribe<VideoUploadedEvent>(notificationService);
+
+            // --- INITIALIZE AND START SERVICES ---
+            var logger = serviceProvider.GetRequiredService<Logger>();
+            var userService = serviceProvider.GetRequiredService<UserService>();
+            var videoService = serviceProvider.GetRequiredService<VideoService>();
+            var commandHandler = serviceProvider.GetRequiredService<CommandHandler>();
+            var httpServer = serviceProvider.GetRequiredService<HttpServer>();
+            var tcpServer = serviceProvider.GetRequiredService<TcpServer>();
+
             await userService.LoadUsersAsync();
-
-            // Start servers
             httpServer.Start();
             tcpServer.Start();
 
-            // Set up periodic save
+            logger.Log($"🚀 Server started successfully. TCP on port {Port}, HTTP on port {WebPort}.");
+
             _ = Task.Run(async () =>
             {
                 while (!cts.Token.IsCancellationRequested)
                 {
                     await Task.Delay(TimeSpan.FromMinutes(15), cts.Token);
+                    logger.Log("💾 Periodic save triggered.");
                     await userService.SaveUsersAsync();
                 }
             });
 
-            // Handle shutdown
             Console.CancelKeyPress += async (s, e) =>
             {
                 e.Cancel = true;
                 logger.Log("🛑 Shutdown requested...");
                 cts.Cancel();
+
+                logger.Log("💾 Saving final data...");
                 await userService.SaveUsersAsync();
+
+                logger.Log("🛑 Stopping servers...");
                 await httpServer.StopAsync();
                 await tcpServer.StopAsync();
+
                 Environment.Exit(0);
             };
 
-            // Keep the application running
             await Task.Delay(Timeout.Infinite);
         }
     }

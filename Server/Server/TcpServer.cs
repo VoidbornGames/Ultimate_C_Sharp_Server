@@ -22,10 +22,15 @@ namespace UltimateServer.Services
         private CancellationTokenSource _cts;
         private ConcurrentDictionary<TcpClient, bool> _activeClients = new();
 
-        public TcpServer(int port, string ip, Logger logger, CommandHandler commandHandler)
+        // REPLACE YOUR ENTIRE CONSTRUCTOR WITH THIS ONE
+        public TcpServer(
+            ServerSettings settings, // <-- The first parameter is now ServerSettings
+            ConfigManager configManager,
+            Logger logger,
+            CommandHandler commandHandler)
         {
-            _port = port;
-            _ip = ip;
+            _port = settings.Port; // <-- We get the port from the settings object
+            _ip = configManager.Config.Ip;
             _logger = logger;
             _commandHandler = commandHandler;
             _cts = new CancellationTokenSource();

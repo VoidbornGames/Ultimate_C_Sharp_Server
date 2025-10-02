@@ -106,4 +106,26 @@ namespace UltimateServer.Models
         public T Data { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
+
+
+    /// <summary>
+    /// Holds all file path and folder constants for the application.
+    /// </summary>
+    public class FilePaths
+    {
+        public string UsersFile { get; set; } = "users.json";
+        public string VideosFolder { get; set; } = "videos";
+        public string LogsFolder { get; set; } = "logs";
+        public string ConfigFile { get; set; } = "config.json";
+    }
+
+
+    /// <summary>
+    /// Holds all startup settings for the server, such as port numbers.
+    /// </summary>
+    public class ServerSettings
+    {
+        public int Port { get; set; }
+        public int WebPort { get; set; }
+    }
 }

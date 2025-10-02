@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using UltimateServer.Models;
+using UltimateServer.Services;
 
 namespace UltimateServer.Services
 {

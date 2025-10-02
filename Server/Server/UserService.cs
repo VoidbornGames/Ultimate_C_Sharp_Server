@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using UltimateServer.Models;
 using UltimateServer.Services;
+using UltimateServer.Events; // <-- NEW: Added for Event System
 
 namespace UltimateServer.Services
 {
@@ -16,20 +17,26 @@ namespace UltimateServer.Services
         private readonly AuthenticationService _authService;
         private readonly ValidationService _validationService;
         private readonly CacheService _cacheService;
+        private readonly IEventBus _eventBus;
         private readonly object _userLock = new();
 
         public List<User> Users { get; private set; }
 
-        public UserService(string usersFile = "users.json", Logger logger = null,
-                          AuthenticationService authService = null,
-                          ValidationService validationService = null,
-                          CacheService cacheService = null)
+        // UPDATED CONSTRUCTOR: Accept FilePaths instead of a string
+        public UserService(
+            FilePaths filePaths, // <-- Changed from string usersFile
+            Logger logger,
+            AuthenticationService authService,
+            ValidationService validationService,
+            CacheService cacheService,
+            IEventBus eventBus)
         {
-            _usersFile = usersFile;
-            _logger = logger ?? new Logger();
-            _authService = authService ?? new AuthenticationService(null, new ServerConfig(), _logger);
-            _validationService = validationService ?? new ValidationService(new ServerConfig(), _logger);
-            _cacheService = cacheService ?? new CacheService(new ServerConfig(), _logger);
+            _usersFile = filePaths.UsersFile; // <-- Get the path from the object
+            _logger = logger;
+            _authService = authService;
+            _validationService = validationService;
+            _cacheService = cacheService;
+            _eventBus = eventBus;
             Users = new List<User>();
         }
 
@@ -134,6 +141,13 @@ namespace UltimateServer.Services
             await SaveUsersAsync();
             var createdUser = Users.FirstOrDefault(u => u.Username == request.Username);
             _logger.Log($"✅ User created: {request.Username}");
+
+            // NEW: Publish the UserRegisteredEvent to the event bus
+            if (createdUser != null)
+            {
+                await _eventBus.PublishAsync(new UserRegisteredEvent(createdUser));
+            }
+
             return (createdUser, "User created successfully");
         }
 

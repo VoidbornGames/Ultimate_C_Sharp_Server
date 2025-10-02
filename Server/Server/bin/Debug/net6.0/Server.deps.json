@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "Server/1.0.0": {
+        "dependencies": {
+          "System.Diagnostics.PerformanceCounter": "9.0.9"
+        },
+        "runtime": {
+          "Server.dll": {}
+        }
+      },
+      "System.Diagnostics.PerformanceCounter/9.0.9": {
+        "runtime": {
+          "lib/netstandard2.0/System.Diagnostics.PerformanceCounter.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.925.41916"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Server/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "System.Diagnostics.PerformanceCounter/9.0.9": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-7MSbJ7xSqwAs3dQmZ2mIkJMpLkGVcAcPZ4Txw2q3As82QjZwm/PQGh33Od9PYCyiTPeXMmuIp3BQB7cXkTlRgA==",
+      "path": "system.diagnostics.performancecounter/9.0.9",
+      "hashPath": "system.diagnostics.performancecounter.9.0.9.nupkg.sha512"
+    }
+  }
+}

@@ -19,18 +19,25 @@ namespace UltimateServer.Services
         private readonly UserService _userService;
         private readonly AuthenticationService _authService;
         private readonly VideoService _videoService;
+        private readonly CompressionService _compressionService;
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
         private double _lastCpuUsage = 0;
 
-        public HttpServer(int port, Logger logger, UserService userService,
-                         AuthenticationService authService, VideoService videoService)
+        // REPLACE YOUR ENTIRE CONSTRUCTOR WITH THIS ONE
+        public HttpServer(
+            ServerSettings settings, // <-- The first parameter is now ServerSettings
+            Logger logger,
+            UserService userService,
+            AuthenticationService authService,
+            VideoService videoService)
         {
-            _port = port;
+            _port = settings.WebPort; // <-- We get the port from the settings object
             _logger = logger;
             _userService = userService;
             _authService = authService;
             _videoService = videoService;
+            _compressionService = new CompressionService(new ServerConfig(), logger);
             _cts = new CancellationTokenSource();
         }
 
