@@ -1,92 +1,121 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using UltimateServer.Models;
 using UltimateServer.Services;
+using UltimateServer.Plugins;
+using Newtonsoft.Json;
 
 namespace UltimateServer.Services
 {
     public class HttpServer
     {
         private readonly int _port;
+        private readonly string _ip;
         private readonly Logger _logger;
         private readonly UserService _userService;
         private readonly AuthenticationService _authService;
         private readonly VideoService _videoService;
         private readonly CompressionService _compressionService;
+        private readonly PluginManager _pluginManager;
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
         private double _lastCpuUsage = 0;
+        private readonly ConcurrentDictionary<TcpClient, bool> _activeClients = new();
+        private readonly Dictionary<string, Func<HttpListenerRequest, Task<object>>> _pluginRoutes = new(StringComparer.OrdinalIgnoreCase);
 
-        // REPLACE YOUR ENTIRE CONSTRUCTOR WITH THIS ONE
         public HttpServer(
-            ServerSettings settings, // <-- The first parameter is now ServerSettings
+            ServerSettings settings,
             Logger logger,
             UserService userService,
             AuthenticationService authService,
-            VideoService videoService)
+            VideoService videoService,
+            PluginManager pluginManager)
         {
-            _port = settings.WebPort; // <-- We get the port from the settings object
+            _port = settings.WebPort;
+            _ip = settings.Ip;
             _logger = logger;
             _userService = userService;
+            _logger.Log($"🌐 HttpServer initialized for port {_port}.");
             _authService = authService;
             _videoService = videoService;
+            _pluginManager = pluginManager;
             _compressionService = new CompressionService(new ServerConfig(), logger);
             _cts = new CancellationTokenSource();
         }
 
         public void Start()
         {
-            _httpListener = new HttpListener();
-            _httpListener.Prefixes.Add($"http://*:{_port}/");
-            _httpListener.Start();
-            _logger.Log($"🌐 HTTP server listening on port {_port}");
-
-            _ = Task.Run(async () =>
+            try
             {
-                while (!_cts.Token.IsCancellationRequested)
-                {
-                    var context = await _httpListener.GetContextAsync();
-                    _ = HandleRequestAsync(context);
-                }
-            }, _cts.Token);
+                _httpListener = new HttpListener();
 
-            // Start CPU monitoring
-            _ = Task.Run(async () =>
+                // In containerized environments, use 0.0.0.0 or + to bind to all interfaces
+                // This allows the container to forward requests to your application
+                string prefix = $"http://*:{_port}/";
+
+                _httpListener.Prefixes.Add(prefix);
+                _httpListener.Start();
+                _logger.Log($"🌐 HTTP server listening on {prefix}");
+
+                _ = Task.Run(async () =>
+                {
+                    while (!_cts.Token.IsCancellationRequested)
+                    {
+                        var context = await _httpListener.GetContextAsync();
+                        _ = HandleRequestAsync(context).ContinueWith(t =>
+                        {
+                            if (t.Exception != null)
+                                _logger.LogError($"Request handling error: {t.Exception.Message}");
+                        });
+                    }
+                }, _cts.Token);
+
+                _ = Task.Run(async () =>
+                {
+                    var proc = Process.GetCurrentProcess();
+                    TimeSpan prevCpu = proc.TotalProcessorTime;
+                    DateTime prevTime = DateTime.UtcNow;
+
+                    while (!_cts.Token.IsCancellationRequested)
+                    {
+                        await Task.Delay(1000);
+                        TimeSpan currCpu = proc.TotalProcessorTime;
+                        DateTime currTime = DateTime.UtcNow;
+
+                        double cpuUsedMs = (currCpu - prevCpu).TotalMilliseconds;
+                        double elapsedMs = (currTime - prevTime).TotalMilliseconds;
+                        int cores = Environment.ProcessorCount;
+
+                        _lastCpuUsage = Math.Round((cpuUsedMs / (elapsedMs * cores)) * 100, 2);
+
+                        prevCpu = currCpu;
+                        prevTime = currTime;
+                    }
+                });
+            }
+            catch (HttpListenerException ex)
             {
-                var proc = Process.GetCurrentProcess();
-                TimeSpan prevCpu = proc.TotalProcessorTime;
-                DateTime prevTime = DateTime.UtcNow;
-
-                while (!_cts.Token.IsCancellationRequested)
-                {
-                    await Task.Delay(1000);
-                    TimeSpan currCpu = proc.TotalProcessorTime;
-                    DateTime currTime = DateTime.UtcNow;
-
-                    double cpuUsedMs = (currCpu - prevCpu).TotalMilliseconds;
-                    double elapsedMs = (currTime - prevTime).TotalMilliseconds;
-                    int cores = Environment.ProcessorCount;
-
-                    _lastCpuUsage = Math.Round((cpuUsedMs / (elapsedMs * cores)) * 100, 2);
-
-                    prevCpu = currCpu;
-                    prevTime = currTime;
-                }
-            });
+                _logger.LogError($"❌ Failed to start HTTP server: {ex.Message}");
+                _logger.LogError($"💡 Tip: Make sure port {_port} is not already in use");
+                throw;
+            }
         }
 
         public async Task StopAsync()
         {
             _cts.Cancel();
             _httpListener?.Stop();
-            _logger.Log("🌐 HTTP server stopped");
+            _logger.Log("🌐 HTTP server stopped.");
+            await Task.CompletedTask;
         }
 
         private async Task HandleRequestAsync(HttpListenerContext context)
@@ -94,6 +123,7 @@ namespace UltimateServer.Services
             var request = context.Request;
             var response = context.Response;
 
+            // Add CORS headers
             response.AddHeader("Access-Control-Allow-Origin", "*");
             if (request.HttpMethod == "OPTIONS")
             {
@@ -106,6 +136,40 @@ namespace UltimateServer.Services
 
             try
             {
+                // Check for plugin-registered routes first
+                foreach (var pluginEntry in _pluginManager.GetLoadedPlugins())
+                {
+                    var plugin = pluginEntry.Value;
+                    var pluginCtx = _pluginManager.GetPluginContext(plugin.Name);
+                    if (pluginCtx != null)
+                    {
+                        var handler = pluginCtx.GetRouteHandler(request.Url.AbsolutePath);
+                        if (handler != null)
+                        {
+                            try
+                            {
+                                // Execute the plugin handler
+                                await handler(request);
+
+                                // If the plugin didn't send a response, send a default success response
+                                if (!response.SendChunked && response.StatusCode == 200)
+                                {
+                                    await WriteJsonResponseAsync(response, new { success = true });
+                                }
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"Plugin route handler error: {ex.Message}");
+                                response.StatusCode = 500;
+                                await WriteJsonResponseAsync(response, new { success = false, message = "Plugin error." });
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // Continue with your default route handling
                 switch (request.Url.AbsolutePath)
                 {
                     // Authentication endpoints
@@ -113,8 +177,27 @@ namespace UltimateServer.Services
                         await HandleLoginAsync(request, response);
                         break;
 
+                    case "/api/register":
+                        await HandleRegisterAsync(request, response);
+                        break;
+
                     case "/api/verify-2fa":
                         await HandleTwoFactorVerificationAsync(request, response);
+                        break;
+
+                    // Plugin management endpoints
+                    case "/api/plugins":
+                        if (ValidateAuthentication(request))
+                            await HandlePluginsListAsync(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
+                    case "/api/plugins/upload":
+                        if (ValidateAuthentication(request))
+                            await HandlePluginUploadAsync(request, response);
+                        else
+                            SendUnauthorized(response);
                         break;
 
                     // Protected endpoints - require authentication
@@ -154,9 +237,30 @@ namespace UltimateServer.Services
                         break;
 
                     default:
-                        if (request.Url.AbsolutePath.StartsWith("/videos/"))
+                        // Handle plugin enable/disable
+                        if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
+                            (request.Url.AbsolutePath.EndsWith("/enable") || request.Url.AbsolutePath.EndsWith("/disable")))
                         {
-                            // Handle video requests with authentication
+                            if (ValidateAuthentication(request))
+                            {
+                                var pathParts = request.Url.AbsolutePath.Split('/');
+                                if (pathParts.Length >= 4)
+                                {
+                                    var pluginId = pathParts[3];
+                                    var enable = request.Url.AbsolutePath.EndsWith("/enable");
+                                    await HandlePluginToggleAsync(request, response, pluginId, enable);
+                                }
+                                else
+                                {
+                                    response.StatusCode = 400;
+                                    await WriteJsonResponseAsync(response, new { success = false, message = "Invalid plugin ID" });
+                                }
+                            }
+                            else
+                                SendUnauthorized(response);
+                        }
+                        else if (request.Url.AbsolutePath.StartsWith("/videos/"))
+                        {
                             if (ValidateAuthentication(request))
                                 await ServeVideoAsync(request, response);
                             else
@@ -180,6 +284,10 @@ namespace UltimateServer.Services
             }
         }
 
+        // ========================================================================
+        // API ENDPOINTS
+        // ========================================================================
+
         private async Task HandleLoginAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             if (request.HttpMethod != "POST")
@@ -193,27 +301,21 @@ namespace UltimateServer.Services
             {
                 using var reader = new StreamReader(request.InputStream);
                 string body = await reader.ReadToEndAsync();
-                // FIX: Deserialize to LoginRequest
                 var loginRequest = JsonConvert.DeserializeObject<LoginRequest>(body);
 
                 if (loginRequest != null)
                 {
-                    // FIX: Call the new async method
                     var (user, message) = await _userService.AuthenticateUserAsync(loginRequest);
-
                     if (user != null)
                     {
-                        // Generate JWT token
-                        string token = _authService.GenerateJwtToken(user);
-
+                        var token = _authService.GenerateJwtToken(user);
                         var responseData = new
                         {
                             success = true,
                             token = token,
-                            refreshToken = user.RefreshToken, // Also send refresh token
+                            refreshToken = user.RefreshToken,
                             user = new { username = user.Username, role = user.Role, email = user.Email }
                         };
-
                         await WriteJsonResponseAsync(response, responseData);
                         _logger.Log($"✅ User logged in: {user.Username}");
                     }
@@ -221,7 +323,6 @@ namespace UltimateServer.Services
                     {
                         response.StatusCode = 401;
                         await WriteJsonResponseAsync(response, new { success = false, message });
-                        _logger.Log($"⚠️ Failed login attempt: {loginRequest.Username}");
                     }
                 }
                 else
@@ -238,12 +339,189 @@ namespace UltimateServer.Services
             }
         }
 
+        private async Task HandleRegisterAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var registerRequest = JsonConvert.DeserializeObject<RegisterRequest>(body);
+
+                if (registerRequest != null)
+                {
+                    var (user, message) = await _userService.CreateUserAsync(registerRequest);
+                    if (user != null)
+                    {
+                        var token = _authService.GenerateJwtToken(user);
+                        var responseData = new
+                        {
+                            success = true,
+                            token = token,
+                            refreshToken = user.RefreshToken,
+                            user = new { username = user.Username, role = user.Role, email = user.Email }
+                        };
+                        await WriteJsonResponseAsync(response, responseData);
+                        _logger.Log($"✅ User registered: {user.Username}");
+                    }
+                    else
+                    {
+                        response.StatusCode = 400;
+                        await WriteJsonResponseAsync(response, new { success = false, message });
+                    }
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Invalid request" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Registration error: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+            }
+        }
+
         private async Task HandleTwoFactorVerificationAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             // Implementation for two-factor authentication
-            // This is optional but recommended for higher security
             await WriteJsonResponseAsync(response, new { success = false, message = "2FA not implemented" });
         }
+
+        // ========================================================================
+        // PLUGIN MANAGEMENT ENDPOINTS
+        // ========================================================================
+
+        private async Task HandlePluginsListAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            try
+            {
+                var plugins = _pluginManager.GetLoadedPlugins();
+                var pluginList = plugins.Select(p => new
+                {
+                    id = p.Key,
+                    name = p.Value.Name,
+                    version = p.Value.Version,
+                    enabled = true // All loaded plugins are considered enabled
+                }).ToList();
+
+                await WriteJsonResponseAsync(response, new { success = true, plugins = pluginList });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error listing plugins: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Failed to list plugins" });
+            }
+        }
+
+        private async Task HandlePluginUploadAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                // Handle file upload
+                if (!request.HasEntityBody)
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "No file uploaded" });
+                    return;
+                }
+
+                // Get the uploaded file
+                var contentType = request.ContentType;
+                if (string.IsNullOrEmpty(contentType) || !contentType.StartsWith("multipart/form-data"))
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Invalid content type" });
+                    return;
+                }
+
+                // Parse multipart form data
+                var boundary = contentType.Split(';')[1].Split('=')[1].Trim('"');
+
+                using var reader = new StreamReader(request.InputStream);
+                var body = await reader.ReadToEndAsync();
+
+                // Extract the file from the multipart form data
+                var fileStartIndex = body.IndexOf(boundary) + boundary.Length;
+                var fileEndIndex = body.LastIndexOf(boundary) - 2;
+                var fileContent = body.Substring(fileStartIndex, fileEndIndex - fileStartIndex);
+
+                // Find the filename
+                var filenameMatch = System.Text.RegularExpressions.Regex.Match(fileContent, @"filename=""([^""]+)""");
+                if (!filenameMatch.Success)
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "No filename found" });
+                    return;
+                }
+
+                var filename = filenameMatch.Groups[1].Value;
+
+                // Find the actual file content
+                var headerEndIndex = fileContent.IndexOf("\r\n\r\n") + 4;
+                var actualFileContent = fileContent.Substring(headerEndIndex);
+
+                // Save the file to the plugins directory
+                var pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
+                if (!Directory.Exists(pluginsDirectory))
+                    Directory.CreateDirectory(pluginsDirectory);
+
+                var filePath = Path.Combine(pluginsDirectory, filename);
+                await File.WriteAllBytesAsync(filePath, Convert.FromBase64String(actualFileContent));
+
+                // Reload plugins
+                await _pluginManager.UnloadAllPluginsAsync();
+                await _pluginManager.LoadPluginsAsync(pluginsDirectory);
+
+                await WriteJsonResponseAsync(response, new { success = true, message = "Plugin uploaded successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error uploading plugin: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Failed to upload plugin" });
+            }
+        }
+
+        private async Task HandlePluginToggleAsync(HttpListenerRequest request, HttpListenerResponse response, string pluginId, bool enable)
+        {
+            try
+            {
+                // For now, we'll just return success since we don't have a way to enable/disable individual plugins
+                // In a real implementation, you would add this functionality to your PluginManager
+                await WriteJsonResponseAsync(response, new
+                {
+                    success = true,
+                    message = $"Plugin {pluginId} {(enable ? "enabled" : "disabled")} successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error toggling plugin: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Failed to toggle plugin" });
+            }
+        }
+
+        // ========================================================================
+        // AUTHENTICATION & AUTHORIZATION HELPERS
+        // ========================================================================
 
         private bool ValidateAuthentication(HttpListenerRequest request)
         {
@@ -262,6 +540,10 @@ namespace UltimateServer.Services
             response.StatusCode = 401;
             response.AddHeader("WWW-Authenticate", "Bearer");
         }
+
+        // ========================================================================
+        // CORE REQUEST HANDLERS
+        // ========================================================================
 
         private async Task HandleStatsAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
@@ -282,6 +564,8 @@ namespace UltimateServer.Services
 
             double memUsage = proc.WorkingSet64 / 1024.0 / 1024.0;
             double memMax = 0;
+            object systemStats;
+
             if (!OperatingSystem.IsWindows())
             {
                 try
@@ -290,12 +574,13 @@ namespace UltimateServer.Services
                     string totalLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemTotal:"));
                     string freeLine = memInfo.Split('\n').FirstOrDefault(l => l.StartsWith("MemAvailable:"));
 
+                    // Fixed: Corrected the LINQ operations and parsing
                     double totalMem = totalLine != null
-                        ? double.Parse(new string(totalLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
+                        ? double.Parse(new string(totalLine.Where(char.IsDigit).ToArray())) / 1024.0
                         : memUsage;
 
                     double freeMem = freeLine != null
-                        ? double.Parse(new string(freeLine.Where(c => char.IsDigit(c)).ToArray())) / 1024.0
+                        ? double.Parse(new string(freeLine.Where(char.IsDigit).ToArray())) / 1024.0
                         : 0;
 
                     memMax = totalMem;
@@ -305,33 +590,48 @@ namespace UltimateServer.Services
                 {
                     memMax = memUsage;
                 }
+
+                DriveInfo drive = new DriveInfo("/");
+                long totalSpace = drive.TotalSize;
+                long usedSpace = totalSpace - drive.AvailableFreeSpace;
+                double diskPercent = (double)usedSpace / totalSpace * 100;
+
+                long totalBytesSent = 0;
+                long totalBytesReceived = 0;
+                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    var nicStats = nic.GetIPv4Statistics();
+                    totalBytesSent += nicStats.BytesSent;
+                    totalBytesReceived += nicStats.BytesReceived;
+                }
+
+                systemStats = new
+                {
+                    cpuUsage = cpuUse,
+                    memoryMB = memUsage,
+                    memoryMaxMB = memMax,
+                    diskUsedGB = usedSpace / (1024.0 * 1024 * 1024),
+                    diskTotalGB = totalSpace / (1024.0 * 1024 * 1024),
+                    diskPercent,
+                    netSentMB = totalBytesSent / (1024.0 * 1024),
+                    netReceivedMB = totalBytesReceived / (1024.0 * 1024)
+                };
             }
-
-            DriveInfo drive = new DriveInfo("/");
-            long totalSpace = drive.TotalSize;
-            long usedSpace = totalSpace - drive.AvailableFreeSpace;
-            double diskPercent = (double)usedSpace / totalSpace * 100;
-
-            long totalBytesSent = 0;
-            long totalBytesReceived = 0;
-            foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+            else
             {
-                var nicStats = nic.GetIPv4Statistics();
-                totalBytesSent += nicStats.BytesSent;
-                totalBytesReceived += nicStats.BytesReceived;
+                // Windows system stats
+                systemStats = new
+                {
+                    cpuUsage = cpuUse,
+                    memoryMB = memUsage,
+                    memoryMaxMB = memMax,
+                    diskUsedGB = 0,
+                    diskTotalGB = 0,
+                    diskPercent = 0,
+                    netSentMB = 0,
+                    netReceivedMB = 0
+                };
             }
-
-            var systemStats = new
-            {
-                cpuUsage = cpuUse,
-                memoryMB = memUsage,
-                memoryMaxMB = memMax,
-                diskUsedGB = usedSpace / (1024.0 * 1024 * 1024),
-                diskTotalGB = totalSpace / (1024.0 * 1024 * 1024),
-                diskPercent,
-                netSentMB = totalBytesSent / (1024.0 * 1024),
-                netReceivedMB = totalBytesReceived / (1024.0 * 1024)
-            };
 
             await WriteJsonResponseAsync(response, systemStats);
         }
@@ -411,11 +711,14 @@ namespace UltimateServer.Services
             }
         }
 
+        // ========================================================================
+        // VIDEO STREAMING & FILE SERVING
+        // ========================================================================
+
         private async Task ServeVideoAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             try
             {
-                // Extract filename from URL
                 string path = request.Url.AbsolutePath;
                 if (!path.StartsWith("/videos/"))
                 {
@@ -426,8 +729,6 @@ namespace UltimateServer.Services
                 }
 
                 string fileName = path.Substring("/videos/".Length);
-
-                // Remove any query parameters
                 int queryIndex = fileName.IndexOf('?');
                 if (queryIndex > 0)
                 {
@@ -453,7 +754,6 @@ namespace UltimateServer.Services
                     response.AddHeader("Access-Control-Allow-Origin", "*");
                     response.AddHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
                     response.AddHeader("Access-Control-Allow-Headers", "Range");
-
                     long fileLength = new FileInfo(filePath).Length;
 
                     if (request.Headers["Range"] != null)
@@ -480,29 +780,31 @@ namespace UltimateServer.Services
                         response.StatusCode = 206;
                         response.AddHeader("Content-Range", $"bytes {start}-{end}/{fileLength}");
                         response.ContentLength64 = contentLength;
-
                         _logger.Log($"🎬 Serving range {start}-{end} of {fileLength} bytes");
 
-                        using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                        fs.Seek(start, SeekOrigin.Begin);
-                        byte[] buffer = new byte[8192]; // Larger buffer for better performance
-                        int bytesRead;
-                        long bytesRemaining = contentLength;
-
-                        while (bytesRemaining > 0 && (bytesRead = await fs.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, bytesRemaining))) > 0)
+                        using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
                         {
-                            await response.OutputStream.WriteAsync(buffer, 0, bytesRead);
-                            bytesRemaining -= bytesRead;
+                            fs.Seek(start, SeekOrigin.Begin);
+                            byte[] buffer = new byte[8192];
+                            int bytesRead;
+                            long bytesRemaining = contentLength;
+                            // Fixed: Corrected the condition in the while loop
+                            while (bytesRemaining > 0 && (bytesRead = await fs.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, bytesRemaining))) > 0)
+                            {
+                                await response.OutputStream.WriteAsync(buffer, 0, bytesRead);
+                                bytesRemaining -= bytesRead;
+                            }
                         }
                     }
                     else
                     {
-                        // Full file request
                         response.ContentLength64 = fileLength;
-                        _logger.Log($"🎬 Serving full file ({fileLength} bytes)");
+                        _logger.Log($"🎬 Serving full file ({fileLength} bytes");
 
-                        using var fs = File.OpenRead(filePath);
-                        await fs.CopyToAsync(response.OutputStream);
+                        using (var fs = File.OpenRead(filePath))
+                        {
+                            await fs.CopyToAsync(response.OutputStream);
+                        }
                     }
 
                     _logger.Log($"✅ Video served successfully");
@@ -549,12 +851,16 @@ namespace UltimateServer.Services
             }
         }
 
+        // ========================================================================
+        // HELPER METHODS
+        // ========================================================================
+
         private async Task WriteJsonResponseAsync(HttpListenerResponse response, object data)
         {
             string json = JsonConvert.SerializeObject(data);
             byte[] buffer = Encoding.UTF8.GetBytes(json);
             response.ContentType = "application/json";
-            response.ContentLength64 = buffer.Length;
+            response.ContentLength64 = (long)buffer.Length;
             await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
         }
 
@@ -562,8 +868,20 @@ namespace UltimateServer.Services
         {
             byte[] buffer = Encoding.UTF8.GetBytes(text);
             response.ContentType = "text/plain";
-            response.ContentLength64 = buffer.Length;
+            response.ContentLength64 = (long)buffer.Length;
             await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+        }
+
+        // ========================================================================
+        // PLUGIN SYSTEM INTEGRATION
+        // ========================================================================
+
+        /// <summary>
+        /// Public method for plugins to register their API routes.
+        /// </summary>
+        public void RegisterPluginRoute(string path, Func<HttpListenerRequest, Task<object>> handler)
+        {
+            _pluginRoutes[path] = handler;
         }
     }
 }

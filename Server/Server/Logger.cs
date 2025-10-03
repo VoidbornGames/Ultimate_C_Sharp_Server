@@ -11,34 +11,46 @@ namespace UltimateServer.Services
         private readonly string _logFile;
         private readonly object _logLock = new();
 
+        // CHANGE 1: Add a static lock to make the PrepareLogs method thread-safe across all instances.
+        private static readonly object _prepareLock = new object();
+
         public Logger(string logsFolder = "logs")
         {
             _logsFolder = logsFolder;
             _logFile = Path.Combine(_logsFolder, "latest.log");
-            PrepareLogs();
         }
 
-        private void PrepareLogs()
+        public void PrepareLogs()
         {
-            try
+            // Lock the entire preparation process to prevent race conditions.
+            lock (_prepareLock)
             {
-                if (!Directory.Exists(_logsFolder)) Directory.CreateDirectory(_logsFolder);
-
-                if (File.Exists(_logFile))
+                try
                 {
-                    string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-                    string zipFile = Path.Combine(_logsFolder, $"latest_{timestamp}.zip");
+                    if (!Directory.Exists(_logsFolder)) Directory.CreateDirectory(_logsFolder);
 
-                    using var archive = System.IO.Compression.ZipFile.Open(zipFile, System.IO.Compression.ZipArchiveMode.Create);
-                    archive.CreateEntryFromFile(_logFile, "latest.log");
+                    // Double-check inside the lock in case another thread just finished.
+                    if (File.Exists(_logFile))
+                    {
+                        string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                        string zipFile = Path.Combine(_logsFolder, $"latest_{timestamp}.zip");
 
-                    File.Delete(_logFile);
-                    File.Create(_logFile).Close();
+                        // This block is now protected from being run by multiple threads at once.
+                        using (var archive = ZipFile.Open(zipFile, ZipArchiveMode.Create))
+                        {
+                            archive.CreateEntryFromFile(_logFile, "latest.log");
+                        }
+
+                        File.Delete(_logFile);
+
+                        // CHANGE 3: A cleaner way to create an empty file.
+                        File.WriteAllText(_logFile, string.Empty);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error preparing logs: {ex.Message}");
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Error preparing logs: {ex.Message}");
+                }
             }
         }
 
@@ -51,9 +63,14 @@ namespace UltimateServer.Services
         {
             string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{level}] {message}";
             Console.WriteLine(logEntry);
+
+            // The lock ensures only one thread writes to the file at a time.
             lock (_logLock)
             {
-                File.AppendAllTextAsync(_logFile, logEntry + Environment.NewLine);
+                // CHANGE 2: Use the synchronous AppendAllText. The async version was "fire-and-forget"
+                // and unsafe. Since we are already in a lock, the sync version is appropriate
+                // and guarantees the write completes before the lock is released.
+                File.AppendAllText(_logFile, logEntry + Environment.NewLine);
             }
         }
     }

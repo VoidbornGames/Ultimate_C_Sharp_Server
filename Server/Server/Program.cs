@@ -29,18 +29,11 @@ namespace UltimateServer
             services.AddSingleton(provider => new ConfigManager(logger: provider.GetRequiredService<Logger>()));
             services.AddSingleton(provider => provider.GetRequiredService<ConfigManager>().Config);
             services.AddSingleton<FilePaths>();
-
-            // CREATE AND REGISTER THE SERVERSETTINGS OBJECT
-            var serverSettings = new ServerSettings
-            {
-                Port = Port,
-                WebPort = WebPort
-            };
-            services.AddSingleton(serverSettings);
-
+            services.AddSingleton(provider => new ServerSettings { Port = Port, WebPort = WebPort });
             services.AddSingleton<CacheService>();
             services.AddSingleton<IEventBus, InMemoryEventBus>();
             services.AddSingleton<NotificationService>();
+            services.AddSingleton<PluginManager>(); // <-- NEW: Register Plugin Manager
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -49,20 +42,26 @@ namespace UltimateServer
             services.AddScoped<UserService>();
             services.AddScoped<VideoService>();
             services.AddScoped<CommandHandler>();
-            services.AddScoped<HttpServer>();
+            services.AddScoped<HttpServer>(); // HttpServer needs the PluginManager
             services.AddScoped<TcpServer>();
 
             var serviceProvider = services.BuildServiceProvider();
 
+            // --- INITIALIZE AND START SERVICES ---
+            var logger = serviceProvider.GetRequiredService<Logger>();
+            logger.PrepareLogs();
+            var pluginManager = serviceProvider.GetRequiredService<PluginManager>(); // <-- NEW: Resolve Plugin Manager
+
+            // Load plugins BEFORE starting the main servers
+            await pluginManager.LoadPluginsAsync("plugins");
+
             // --- SUBSCRIBE EVENT HANDLERS ---
             var eventBus = serviceProvider.GetRequiredService<IEventBus>();
             var notificationService = serviceProvider.GetRequiredService<NotificationService>();
-
             eventBus.Subscribe<UserRegisteredEvent>(notificationService);
             eventBus.Subscribe<VideoUploadedEvent>(notificationService);
 
-            // --- INITIALIZE AND START SERVICES ---
-            var logger = serviceProvider.GetRequiredService<Logger>();
+            // --- INITIALIZE AND START CORE SERVICES ---
             var userService = serviceProvider.GetRequiredService<UserService>();
             var videoService = serviceProvider.GetRequiredService<VideoService>();
             var commandHandler = serviceProvider.GetRequiredService<CommandHandler>();
@@ -82,6 +81,16 @@ namespace UltimateServer
                     await Task.Delay(TimeSpan.FromMinutes(15), cts.Token);
                     logger.Log("💾 Periodic save triggered.");
                     await userService.SaveUsersAsync();
+                }
+            });
+
+
+            _ = Task.Run(async () =>
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, cts.Token);
+                    await pluginManager.UpdateLoadedPluginsAsync("plugins");
                 }
             });
 

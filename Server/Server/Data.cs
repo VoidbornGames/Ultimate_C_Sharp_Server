@@ -125,6 +125,8 @@ namespace UltimateServer.Models
     /// </summary>
     public class ServerSettings
     {
+        public string Ip { get; set; } = "0.0.0.0";
+        public int MaxConnections { get; set; } = 50;
         public int Port { get; set; }
         public int WebPort { get; set; }
     }
