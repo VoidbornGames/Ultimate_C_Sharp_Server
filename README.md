@@ -1,6 +1,6 @@
 <div class="container">
 <h1 id="ultimateserver">UltimateServer</h1>
-<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, and secure video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
+<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, and secure video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir" target="_blank"><strong>Live Dashboard</strong></a></p>
 <a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="https://voidborn-games.ir/wp-content/uploads/2025/10/Screenshot-10_1_2025-11_55_47-PM.png" alt="Dashboard Screenshot"></a>
 
@@ -9,6 +9,7 @@
 <li><a href="#features">Features</a></li>
 <li><a href="#requirements">Requirements</a></li>
 <li><a href="#installation">Installation</a></li>
+<li><a href="#plugin-development-tutorial">Plugin Development Tutorial</a></li>
 <li><a href="#running-it">Running it</a></li>
 <li><a href="#usage">Usage</a></li>
 <li><a href="#api-endpoints">API Endpoints</a></li>
@@ -101,6 +102,16 @@
 </div>
 
 <div class="feature-card">
+<h3 id="-dynamic-plugin-system">🔌 Dynamic Plugin System</h3>
+<ul>
+<li><strong>Hot-Reloading</strong>: Load, update, and unload plugins at runtime without restarting the server.</li>
+<li><strong>Sandboxed Execution</strong>: Plugins run in isolated contexts for security and stability.</li>
+<li><strong>Async Lifecycle Hooks</strong>: Plugins can hook into server events with <code>OnLoadAsync</code>, <code>OnUpdateAsync</code>, and <code>OnUnloadAsync</code>.</li>
+<li><strong>Easy Development</strong>: Simple C# interface-based development model for extending server functionality.</li>
+</ul>
+</div>
+
+<div class="feature-card">
 <h3 id="-logging-system">📝 Logging System</h3>
 <ul>
 <li>Automatic log rotation with ZIP compression</li>
@@ -129,6 +140,98 @@ cd Ultimate_C_Sharp_Server</code></pre>
 <pre><code class="language-bash">dotnet build</code></pre>
 </li>
 </ol>
+
+<h2 id="plugin-development-tutorial">Plugin Development Tutorial</h2>
+<p>UltimateServer's functionality can be easily extended using a powerful plugin system. This tutorial will guide you through creating your first plugin.</p>
+
+<h3 id="what-is-a-plugin-">What is a Plugin?</h3>
+<p>A plugin is a separate .NET assembly (a .dll file) that contains code to extend the server's features. The server automatically loads these assemblies from a designated directory, allowing you to add new commands, integrate with other services, or react to server events without modifying the core server code.</p>
+
+<h3 id="prerequisites">Prerequisites</h3>
+<ul>
+<li>.NET 6.0 SDK</li>
+<li>A C# IDE like Visual Studio 2022, VS Code, or JetBrains Rider.</li>
+<li>A copy of the UltimateServer source code.</li>
+</ul>
+
+<h3 id="step-1-create-a-new-class-library-project">Step 1: Create a New Class Library Project</h3>
+<p>First, create a new project for your plugin. Open your terminal or command prompt and run:</p>
+<pre><code class="language-bash">dotnet new classlib -n MyAwesomePlugin
+cd MyAwesomePlugin</code></pre>
+<p>This will create a new C# class library project named <code>MyAwesomePlugin</code>.</p>
+
+<h3 id="step-2-add-a-reference-to-the-server-project">Step 2: Add a Reference to the Server Project</h3>
+<p>Your plugin needs to know about the <code>IPlugin</code> interface. You can do this by adding a project reference to the UltimateServer project.</p>
+<pre><code class="language-bash">dotnet add reference ../path/to/UltimateServer/Server.csproj</code></pre>
+<p><em>Note: Replace <code>../path/to/UltimateServer/</code> with the actual relative path to the server project file. It's good practice to copy the <code>IPlugin.cs</code> and <code>PluginContext.cs</code> files into your plugin project instead of referencing the whole server project to keep your plugin independent.</em></p>
+
+<h3 id="step-3-implement-the-iplugin-interface">Step 3: Implement the IPlugin Interface</h3>
+<p>Now, rename the default <code>Class1.cs</code> to something more descriptive, like <code>MainPlugin.cs</code>. Open the file and implement the <code>IPlugin</code> interface.</p>
+<p>Here is a complete example of a simple plugin:</p>
+<pre><code class="language-csharp">using System;
+using System.Threading.Tasks;
+using UltimateServer.Plugins;
+
+namespace MyAwesomePlugin
+{
+    public class MainPlugin : IPlugin
+    {
+        // A unique name for your plugin
+        public string Name => "My Awesome Plugin";
+
+        // The version of your plugin
+        public string Version => "1.0.0";
+
+        // This method is called when the plugin is first loaded by the server.
+        public async Task OnLoadAsync(PluginContext context)
+        {
+            context.Logger.Log("Hello from My Awesome Plugin! I have been loaded.");
+            // You can initialize resources, register commands, etc. here.
+            await Task.CompletedTask;
+        }
+
+        // This method is called when the server's plugin manager performs an update.
+        // Useful for reloading configuration or applying hot-fixes.
+        public async Task OnUpdateAsync(PluginContext context)
+        {
+            context.Logger.Log("My Awesome Plugin has been updated.");
+            await Task.CompletedTask;
+        }
+
+        // This method is called when the plugin is being unloaded (e.g., during shutdown or hot-reload).
+        public async Task OnUnloadAsync(PluginContext context)
+        {
+            context.Logger.Log("Goodbye! My Awesome Plugin is unloading.");
+            // You should dispose of any resources here.
+            await Task.CompletedTask;
+        }
+    }
+}</code></pre>
+
+<h3 id="step-4-build-the-plugin">Step 4: Build the Plugin</h3>
+<p>From inside your plugin's directory (<code>MyAwesomePlugin</code>), run the build command:</p>
+<pre><code class="language-bash">dotnet build -c Release</code></pre>
+<p>This will compile your code and produce a <code>MyAwesomePlugin.dll</code> file inside the <code>bin/Release/net6.0/</code> directory.</p>
+
+<h3 id="step-5-deploy-the-plugin">Step 5: Deploy the Plugin</h3>
+<ol>
+<li>Navigate to your UltimateServer's root directory.</li>
+<li>Create a new folder named <code>plugins</code> if it doesn't already exist.</li>
+<li>Copy your plugin's <code>.dll</code> file (e.g., <code>MyAwesomePlugin.dll</code>) into the <code>plugins</code> folder.</li>
+</ol>
+
+<h3 id="step-6-load-and-test">Step 6: Load and Test</h3>
+<p>That's it! Now, simply run the UltimateServer. You will see your plugin's log message in the console when it starts up.</p>
+<pre><code class="language-bash">dotnet Server.dll 11001 11002</code></pre>
+<p><strong>Output:</strong></p>
+<pre><code>...
+🔌 Scanning for plugins in '.../UltimateServer/plugins'
+🔌 Found valid assembly: MyAwesomePlugin, Version=1.0.0.0
+✅ Loaded plugin: My Awesome Plugin v1.0.0
+Hello from My Awesome Plugin! I have been loaded.
+🔌 Plugin loading complete. 1 plugins loaded.
+...</code></pre>
+<p>You can now update your plugin's code, rebuild it, copy the new <code>.dll</code> to the <code>plugins</code> folder, and the server will automatically reload it without needing a restart!</p>
 
 <h2 id="running-it">Running it</h2>
 <h3 id="default-configuration">Default Configuration:</h3>
@@ -202,6 +305,11 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
 <li><code>GET /logs</code>: Get recent server logs (requires authentication)</li>
 </ul>
 
+<h3 id="plugin-management-api">Plugin Management</h3>
+<ul>
+<li><code>POST /api/plugins/reload</code>: Triggers a scan and reload of all plugins in the plugins directory (requires authentication).</li>
+</ul>
+
 <h3 id="video-management-api">Video Management</h3>
 <ul>
 <li><code>GET /videos</code>: List all available videos (requires authentication)</li>
@@ -226,7 +334,8 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
   "MaxRequestSizeMB": 100,
   "EnableCompression": true,
   "CacheExpiryMinutes": 15,
-  "ConnectionPoolSize": 10
+  "ConnectionPoolSize": 10,
+  "PluginsDirectory": "plugins"
 }</code></pre>
 
 <h3 id="configuration-options">Configuration Options</h3>
@@ -242,6 +351,7 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
 <li><strong>EnableCompression</strong>: Enables Gzip/Deflate compression for HTTP responses.</li>
 <li><strong>CacheExpiryMinutes</strong>: Default expiry time for cached items.</li>
 <li><strong>ConnectionPoolSize</strong>: The number of connections to keep in the pool.</li>
+<li><strong>PluginsDirectory</strong>: The directory where the server scans for plugin DLLs (default: "plugins").</li>
 </ul>
 
 <h2 id="video-management">Video Management</h2>
@@ -336,17 +446,4 @@ docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
 <li>Commit your changes (<code>git commit -m 'Add some AmazingFeature'</code>)</li>
 <li>Push to the branch (<code>git push origin feature/AmazingFeature</code>)</li>
 <li>Open a Pull Request</li>
-</ol>
-
-<h2 id="support">Support</h2>
-<p>If you encounter any issues or have questions, please:</p>
-<ol>
-<li>Check the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/issues">Issues</a> page</li>
-<li>Create a new issue with detailed information</li>
-<li>Include server logs and error messages when applicable</li>
-</ol>
-
-<div class="footer">
-<p><strong>© 2025 UltimateServer · VoidbornGames</strong></p>
-</div>
-</div>
+</ol
