@@ -1011,6 +1011,257 @@ footer {
     max-width: none;
   }
 }
+    
+/* Plugin Styles */
+.plugin-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.plugin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--accent);
+}
+
+.plugin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.plugin-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.plugin-title i {
+  color: var(--accent);
+}
+
+.plugin-status {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.plugin-status.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.plugin-status.inactive {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.plugin-description {
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.plugin-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.plugin-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.plugin-btn.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.plugin-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.plugin-btn.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.plugin-btn.secondary:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.plugin-content {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+
+.plugin-content.show {
+  display: block;
+}
+
+.plugin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.plugin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.plugin-form-group label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.plugin-form-group input,
+.plugin-form-group select,
+.plugin-form-group textarea {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.plugin-form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.plugin-result {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  display: none;
+}
+
+.plugin-result.success {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.plugin-result.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.plugin-result.show {
+  display: block;
+}
+
+.plugin-result pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.plugin-upload {
+  margin-top: 20px;
+  padding: 20px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.plugin-upload:hover {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.plugin-upload i {
+  font-size: 48px;
+  color: var(--text-dim);
+  margin-bottom: 15px;
+}
+
+.plugin-upload h4 {
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.plugin-upload p {
+  color: var(--text-secondary);
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.file-input-wrapper {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.file-input-wrapper input[type=file] {
+  position: absolute;
+  left: -9999px;
+}
+
+.file-input-label {
+  display: inline-block;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-input-label:hover {
+  background: var(--accent-hover);
+}
+
+.empty-plugins {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-dim);
+}
+
+.empty-plugins i {
+  font-size: 48px;
+  margin-bottom: 15px;
+  color: var(--text-dim);
+}
+
+.empty-plugins h3 {
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.empty-plugins p {
+  margin-bottom: 20px;
+}
 </style>
 </head>
 <body>
@@ -1078,6 +1329,9 @@ footer {
     </div>
     <div class="nav-item" data-tab="videosTab">
       <i class="fas fa-video"></i> <span>Videos</span>
+    </div>
+    <div class="nav-item" data-tab="pluginsTab">
+      <i class="fas fa-plug"></i> <span>Plugins</span>
     </div>
   </aside>
 
@@ -1214,6 +1468,36 @@ footer {
         <div class="card">
           <h3><i class="fas fa-film"></i> Video Library</h3>
           <div class="stats" id="videoList"></div>
+        </div>
+      </div>
+
+      <!-- Plugins -->
+      <div class="tab-content" id="pluginsTab">
+        <div class="card">
+          <h3><i class="fas fa-plug"></i> Plugin Management</h3>
+          <div id="pluginsList">
+            <div class="empty-plugins">
+              <i class="fas fa-plug"></i>
+              <h3>Loading plugins...</h3>
+              <p>Please wait while we load the plugins</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3><i class="fas fa-upload"></i> Upload Plugin</h3>
+          <div class="plugin-upload">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <h4>Drop plugin file here or click to browse</h4>
+            <p>Supported formats: .dll, .zip</p>
+            <div class="file-input-wrapper">
+              <input type="file" id="pluginFileInput" accept=".dll,.zip">
+              <label for="pluginFileInput" class="file-input-label">
+                <i class="fas fa-folder-open"></i> Browse Files
+              </label>
+            </div>
+          </div>
+          <div id="pluginUploadStatus"></div>
         </div>
       </div>
     </div>
@@ -1576,6 +1860,11 @@ function initializeDashboard() {
     const tab = document.querySelector(`.nav-item[data-tab="${name}"]`);
     const content = document.getElementById(name);
     if (tab && content) { tab.classList.add('active'); content.classList.add('active'); }
+    
+    // Load plugins when the plugins tab is activated
+    if (name === 'pluginsTab') {
+      fetchPlugins();
+    }
   }
   tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
 
@@ -1588,18 +1877,74 @@ function initializeDashboard() {
   setInterval(updateTime, 1000);
 
   // --- CHARTS ---
-  const maxDataPoints = 20;
-  const cpuData = [], memoryData = [], chartLabels = [];
-  const cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), { /* ... chart config ... */ });
-  const memoryChart = new Chart(document.getElementById('memoryChart').getContext('2d'), { /* ... chart config ... */ });
-  function updateCharts(cpu, memory) {
-    const now = new Date();
-    const timeLabel = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    if (chartLabels.length >= maxDataPoints) { chartLabels.shift(); cpuData.shift(); memoryData.shift(); }
-    chartLabels.push(timeLabel); cpuData.push(cpu); memoryData.push(memory);
-    cpuChart.update('none'); memoryChart.update('none');
+const maxDataPoints = 20;
+const cpuData = [], memoryData = [], chartLabels = [];
+const cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: chartLabels,
+    datasets: [{
+      label: 'CPU Usage (%)',
+      data: cpuData,
+      borderColor: '#6366f1',
+      backgroundColor: 'rgba(99, 102, 241, 0.1)',
+      tension: 0.4,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: 100,
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      },
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      }
+    },
+    plugins: {
+      legend: { display: false }
+    }
   }
+});
 
+const memoryChart = new Chart(document.getElementById('memoryChart').getContext('2d'), {
+  type: 'line',
+  data: {
+    labels: chartLabels,
+    datasets: [{
+      label: 'Memory Usage (MB)',
+      data: memoryData,
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      tension: 0.4,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      },
+      x: {
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+        ticks: { color: '#94a3b8' }
+      }
+    },
+    plugins: {
+      legend: { display: false }
+    }
+  }
+});
   // --- DATA FETCHING FUNCTIONS ---
   async function fetchStats() {
     try {
@@ -1728,6 +2073,149 @@ function initializeDashboard() {
       showToast('Upload Failed', err.message, 'error');
     }
   };
+
+  // --- PLUGIN FUNCTIONS ---
+  async function fetchPlugins() {
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/plugins`);
+      const data = await response.json();
+      
+      const pluginsList = document.getElementById('pluginsList');
+      
+      if (!data.success || !data.plugins || data.plugins.length === 0) {
+        pluginsList.innerHTML = `
+          <div class="empty-plugins">
+            <i class="fas fa-plug"></i>
+            <h3>No plugins installed</h3>
+            <p>Upload a plugin file to get started</p>
+          </div>
+        `;
+        return;
+      }
+      
+      pluginsList.innerHTML = '';
+      data.plugins.forEach(plugin => {
+        const pluginCard = document.createElement('div');
+        pluginCard.className = 'plugin-card';
+        pluginCard.innerHTML = `
+          <div class="plugin-header">
+            <div class="plugin-title">
+              <i class="fas fa-cube"></i>
+              <span>${plugin.name}</span>
+            </div>
+            <div class="plugin-status ${plugin.enabled ? 'active' : 'inactive'}">
+              ${plugin.enabled ? 'Active' : 'Inactive'}
+            </div>
+          </div>
+          <div class="plugin-description">
+            Plugin version ${plugin.version}
+          </div>
+          <div class="plugin-actions">
+          </div>
+          <div class="plugin-content" id="plugin-${plugin.id}-content">
+            <div class="plugin-form">
+              <div class="plugin-form-group">
+                <label>Version</label>
+                <input type="text" value="${plugin.version || 'Unknown'}" readonly>
+              </div>
+              <div class="plugin-form-group">
+                <label>API Routes</label>
+                <div class="plugin-result show">
+                  <p>This plugin registers API routes with the server</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        pluginsList.appendChild(pluginCard);
+      });
+    } catch (error) {
+      console.error('Error fetching plugins:', error);
+      const pluginsList = document.getElementById('pluginsList');
+      pluginsList.innerHTML = `
+        <div class="plugin-result error show">
+          <i class="fas fa-exclamation-circle"></i> Error loading plugins: ${error.message}
+        </div>
+      `;
+    }
+  }
+
+  window.togglePlugin = async function(pluginId, enable) {
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/plugins/${pluginId}/${enable ? 'enable' : 'disable'}`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        showToast('Plugin Updated', `Plugin ${enable ? 'enabled' : 'disabled'} successfully`, 'success');
+        fetchPlugins(); // Refresh the plugins list
+      } else {
+        const error = await response.json();
+        showToast('Plugin Update Failed', error.message || 'Unknown error', 'error');
+      }
+    } catch (error) {
+      console.error('Error toggling plugin:', error);
+      showToast('Plugin Update Failed', error.message, 'error');
+    }
+  };
+
+  window.configurePlugin = function(pluginId) {
+    const content = document.getElementById(`plugin-${pluginId}-content`);
+    content.classList.toggle('show');
+  };
+
+  // Handle plugin file upload
+  const pluginFileInput = document.getElementById('pluginFileInput');
+  const pluginUploadStatus = document.getElementById('pluginUploadStatus');
+  
+  pluginFileInput.addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Check file extension
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.dll') && !fileName.endsWith('.zip')) {
+      pluginUploadStatus.innerHTML = `<div class="plugin-result error show"><i class="fas fa-exclamation-circle"></i> Invalid file format. Please upload a .dll or .zip file.</div>`;
+      return;
+    }
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('plugin', file);
+    
+    // Show loading state
+    pluginUploadStatus.innerHTML = `<div class="plugin-result show"><i class="fas fa-spinner fa-spin"></i> Uploading plugin...</div>`;
+    
+    try {
+      const response = await fetch(`${CONFIG.baseUrl}/api/plugins/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${AuthManager.getAuth().token}`
+        },
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        pluginUploadStatus.innerHTML = `<div class="plugin-result success show"><i class="fas fa-check-circle"></i> Plugin uploaded successfully!</div>`;
+        showToast('Plugin Uploaded', result.message || 'Plugin has been uploaded successfully', 'success');
+        
+        // Reset file input
+        pluginFileInput.value = '';
+        
+        // Refresh plugins list
+        fetchPlugins();
+      } else {
+        pluginUploadStatus.innerHTML = `<div class="plugin-result error show"><i class="fas fa-exclamation-circle"></i> ${result.message || 'Failed to upload plugin'}</div>`;
+        showToast('Upload Failed', result.message || 'Failed to upload plugin', 'error');
+      }
+    } catch (error) {
+      console.error('Error uploading plugin:', error);
+      pluginUploadStatus.innerHTML = `<div class="plugin-result error show"><i class="fas fa-exclamation-circle"></i> Error: ${error.message}</div>`;
+      showToast('Upload Failed', error.message, 'error');
+    }
+  });
 
   // --- INITIAL FETCH AND REFRESH INTERVALS ---
   fetchStats(); fetchSystem(); fetchLogs(); fetchVideos();
