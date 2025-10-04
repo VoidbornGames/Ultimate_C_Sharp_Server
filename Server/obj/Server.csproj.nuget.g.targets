@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
+    <Import Project="$(NuGetPackageRoot)system.diagnostics.performancecounter\9.0.9\buildTransitive\netcoreapp2.0\System.Diagnostics.PerformanceCounter.targets" Condition="Exists('$(NuGetPackageRoot)system.diagnostics.performancecounter\9.0.9\buildTransitive\netcoreapp2.0\System.Diagnostics.PerformanceCounter.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.dependencyinjection.abstractions\9.0.9\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.Abstractions.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.dependencyinjection.abstractions\9.0.9\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.Abstractions.targets')" />
+    <Import Project="$(NuGetPackageRoot)microsoft.extensions.dependencyinjection\9.0.9\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.targets" Condition="Exists('$(NuGetPackageRoot)microsoft.extensions.dependencyinjection\9.0.9\buildTransitive\netcoreapp2.0\Microsoft.Extensions.DependencyInjection.targets')" />
+  </ImportGroup>
+</Project>

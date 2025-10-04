@@ -1,0 +1,6 @@
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\Server.exe
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\Server.dll
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\Server.deps.json
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\Server.runtimeconfig.json
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\Server.pdb
+C:\Users\Naboodi\source\repos\Server\Server\bin\Release\net6.0\publish\System.Diagnostics.PerformanceCounter.dll
