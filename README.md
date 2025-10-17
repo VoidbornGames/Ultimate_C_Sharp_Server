@@ -242,7 +242,7 @@ Hello from My Awesome Plugin! I have been loaded.
 
 <h3 id="docker-recommended">Docker (Recommended):</h3>
 <pre><code class="language-bash">docker build -t ultimateserver .
-docker run -p 11001:11001 -p 11002:11002 ultimateserver</code></pre>
+docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></pre>
 
 <h2 id="usage">Usage</h2>
 <h3 id="accessing-the-dashboard">Accessing the Dashboard</h3>
