@@ -6,9 +6,7 @@ namespace UltimateServer.Services
     /// <summary>
     /// A service to handle notifications, reacting to various domain events.
     /// </summary>
-    public class NotificationService :
-        IEventHandler<UserRegisteredEvent>,
-        IEventHandler<VideoUploadedEvent>
+    public class NotificationService : IEventHandler<UserRegisteredEvent>, IEventHandler<VideoUploadedEvent>
     {
         private readonly Logger _logger;
 

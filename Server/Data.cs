@@ -134,5 +134,6 @@ namespace UltimateServer.Models
         public int MaxConnections { get; set; } = 50;
         public int Port { get; set; }
         public int WebPort { get; set; }
+        public int VoicePort { get; set; }
     }
 }

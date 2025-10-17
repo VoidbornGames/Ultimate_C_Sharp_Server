@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using UltimateServer.Models;
 using UltimateServer.Events;
 using UltimateServer.Services;
+using Server.Servers;
 
 namespace UltimateServer
 {
@@ -12,6 +13,7 @@ namespace UltimateServer
     {
         private static int Port = 11001;
         private static int WebPort = 11002;
+        private static int VoicePort = 11003;
         private static CancellationTokenSource cts = new();
         private const string JwtSecret = "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
 
@@ -21,6 +23,8 @@ namespace UltimateServer
                 Port = parsedPort;
             if (args.Length > 1 && int.TryParse(args[1], out int parsedPortWeb))
                 WebPort = parsedPortWeb;
+            if (args.Length > 2 && int.TryParse(args[2], out int parsedVoicePort))
+                VoicePort = parsedVoicePort;
 
             var services = new ServiceCollection();
 
@@ -29,7 +33,7 @@ namespace UltimateServer
             services.AddSingleton(provider => new ConfigManager(logger: provider.GetRequiredService<Logger>()));
             services.AddSingleton(provider => provider.GetRequiredService<ConfigManager>().Config);
             services.AddSingleton<FilePaths>();
-            services.AddSingleton(provider => new ServerSettings { Port = Port, WebPort = WebPort });
+            services.AddSingleton(provider => new ServerSettings { Port = Port, WebPort = WebPort, VoicePort = VoicePort });
             services.AddSingleton<CacheService>();
             services.AddSingleton<IEventBus, InMemoryEventBus>();
             services.AddSingleton<NotificationService>();
@@ -45,6 +49,7 @@ namespace UltimateServer
             services.AddScoped<CommandHandler>();
             services.AddScoped<HttpServer>(); // HttpServer needs the PluginManager
             services.AddScoped<TcpServer>();
+            services.AddScoped<UdpServer>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -68,10 +73,12 @@ namespace UltimateServer
             var commandHandler = serviceProvider.GetRequiredService<CommandHandler>();
             var httpServer = serviceProvider.GetRequiredService<HttpServer>();
             var tcpServer = serviceProvider.GetRequiredService<TcpServer>();
+            var udpServer = serviceProvider.GetRequiredService<UdpServer>();
 
             await userService.LoadUsersAsync();
             httpServer.Start();
             tcpServer.Start();
+            udpServer.Start();
 
             logger.Log($"🚀 Server started successfully. TCP on port {Port}, HTTP on port {WebPort}.");
 
@@ -107,12 +114,13 @@ namespace UltimateServer
                 logger.Log("🛑 Stopping servers...");
                 await httpServer.StopAsync();
                 await tcpServer.StopAsync();
+                await udpServer.StopAsync();
 
                 Environment.Exit(0);
             };
 
             // Sends The Server Start Message!
-            // Currently its off because of saving emails.
+            // Currently its off to save emails.
             if (false)
                 await serviceProvider.GetRequiredService<EmailService>().SendAsync(
                     "alirezajanaki33@gmail.com",
