@@ -222,7 +222,7 @@ namespace MyAwesomePlugin
 
 <h3 id="step-6-load-and-test">Step 6: Load and Test</h3>
 <p>That's it! Now, simply run the UltimateServer. You will see your plugin's log message in the console when it starts up.</p>
-<pre><code class="language-bash">dotnet Server.dll 11001 11002</code></pre>
+<pre><code class="language-bash">dotnet Server.dll 11001 11002 11003</code></pre>
 <p><strong>Output:</strong></p>
 <pre><code>...
 🔌 Scanning for plugins in '.../UltimateServer/plugins'
@@ -235,10 +235,10 @@ Hello from My Awesome Plugin! I have been loaded.
 
 <h2 id="running-it">Running it</h2>
 <h3 id="default-configuration">Default Configuration:</h3>
-<pre><code class="language-bash">dotnet Server.dll 11001 11002</code></pre>
+<pre><code class="language-bash">dotnet Server.dll 11001 11002 11003</code></pre>
 
 <h3 id="custom-ports">Custom Ports:</h3>
-<pre><code class="language-bash">dotnet Server.dll &lt;Server_Port&gt; &lt;Dashboard_Port&gt;</code></pre>
+<pre><code class="language-bash">dotnet Server.dll &lt;Server_Port&gt; &lt;Dashboard_Port&gt; &lt;Voicechat_Port&gt;</code></pre>
 
 <h3 id="docker-recommended">Docker (Recommended):</h3>
 <pre><code class="language-bash">docker build -t ultimateserver .
