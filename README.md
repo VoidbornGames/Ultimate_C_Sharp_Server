@@ -15,7 +15,7 @@
 <li><a href="#api-endpoints">API Endpoints</a></li>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#video-management">Video Management</a></li>
-<li><a href="#voice-chat">🎤 Real-Time Voice Chat</a></li>
+<li><a href="#voice-chat">Real-Time Voice Chat</a></li>
 <li><a href="#logging">Logging</a></li>
 <li><a href="#security-features">Security Features</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
