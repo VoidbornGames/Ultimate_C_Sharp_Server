@@ -1,6 +1,6 @@
 <div class="container">
 <h1 id="ultimateserver">UltimateServer</h1>
-<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, and secure video streaming capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
+<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidborn-games.ir" target="_blank"><strong>Live Dashboard</strong></a></p>
 <a href="https://dashboard.voidborn-games.ir" target="_blank"><img src="https://voidborn-games.ir/wp-content/uploads/2025/10/Screenshot-10_1_2025-11_55_47-PM.png" alt="Dashboard Screenshot"></a>
 
@@ -15,6 +15,7 @@
 <li><a href="#api-endpoints">API Endpoints</a></li>
 <li><a href="#configuration">Configuration</a></li>
 <li><a href="#video-management">Video Management</a></li>
+<li><a href="#voice-chat">🎤 Real-Time Voice Chat</a></li>
 <li><a href="#logging">Logging</a></li>
 <li><a href="#security-features">Security Features</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
@@ -102,6 +103,17 @@
 </div>
 
 <div class="feature-card">
+<h3 id="-real-time-voice-chat">🎤 Real-Time Voice Chat</h3>
+<ul>
+<li><strong>Low-Latency UDP</strong>: Built on UDP for real-time communication with minimal delay.</li>
+<li><strong>High-Quality Audio</strong>: Supports clear 16-bit audio at 16kHz for natural-sounding voice.</li>
+<li><strong>Multi-Client Support</strong>: Seamlessly connect multiple clients for group conversations.</li>
+<li><strong>Robust Client Management</strong>: Automatically handles client connections and disconnections.</li>
+<li><strong>Easy-to-Use Client</strong>: A simple C# client library is provided for quick integration into any application.</li>
+</ul>
+</div>
+
+<div class="feature-card">
 <h3 id="-dynamic-plugin-system">🔌 Dynamic Plugin System</h3>
 <ul>
 <li><strong>Hot-Reloading</strong>: Load, update, and unload plugins at runtime without restarting the server.</li>
@@ -127,6 +139,7 @@
 <li>.NET 6.0 SDK or Runtime</li>
 <li>Windows, Linux, or Docker-compatible environment</li>
 <li>Ports open for TCP connections (default: <code>11001</code> for server, <code>11002</code> for web dashboard)</li>
+<li>Port open for UDP connections (default: <code>11003</code> for voice chat)</li>
 <li>Modern web browser with JavaScript enabled</li>
 </ul>
 
@@ -174,38 +187,38 @@ using UltimateServer.Plugins;
 
 namespace MyAwesomePlugin
 {
-    public class MainPlugin : IPlugin
-    {
-        // A unique name for your plugin
-        public string Name => "My Awesome Plugin";
+public class MainPlugin : IPlugin
+{
+// A unique name for your plugin
+public string Name => "My Awesome Plugin";
 
-        // The version of your plugin
-        public string Version => "1.0.0";
+// The version of your plugin
+public string Version => "1.0.0";
 
-        // This method is called when the plugin is first loaded by the server.
-        public async Task OnLoadAsync(PluginContext context)
-        {
-            context.Logger.Log("Hello from My Awesome Plugin! I have been loaded.");
-            // You can initialize resources, register commands, etc. here.
-            await Task.CompletedTask;
-        }
+// This method is called when the plugin is first loaded by the server.
+public async Task OnLoadAsync(PluginContext context)
+{
+context.Logger.Log("Hello from My Awesome Plugin! I have been loaded.");
+// You can initialize resources, register commands, etc. here.
+await Task.CompletedTask;
+}
 
-        // This method is called when the server's plugin manager performs an update.
-        // Useful for reloading configuration or applying hot-fixes.
-        public async Task OnUpdateAsync(PluginContext context)
-        {
-            context.Logger.Log("My Awesome Plugin has been updated.");
-            await Task.CompletedTask;
-        }
+// This method is called when the server's plugin manager performs an update.
+// Useful for reloading configuration or applying hot-fixes.
+public async Task OnUpdateAsync(PluginContext context)
+{
+context.Logger.Log("My Awesome Plugin has been updated.");
+await Task.CompletedTask;
+}
 
-        // This method is called when the plugin is being unloaded (e.g., during shutdown or hot-reload).
-        public async Task OnUnloadAsync(PluginContext context)
-        {
-            context.Logger.Log("Goodbye! My Awesome Plugin is unloading.");
-            // You should dispose of any resources here.
-            await Task.CompletedTask;
-        }
-    }
+// This method is called when the plugin is being unloaded (e.g., during shutdown or hot-reload).
+public async Task OnUnloadAsync(PluginContext context)
+{
+context.Logger.Log("Goodbye! My Awesome Plugin is unloading.");
+// You should dispose of any resources here.
+await Task.CompletedTask;
+}
+}
 }</code></pre>
 
 <h3 id="step-4-build-the-plugin">Step 4: Build the Plugin</h3>
@@ -242,7 +255,7 @@ Hello from My Awesome Plugin! I have been loaded.
 
 <h3 id="docker-recommended">Docker (Recommended):</h3>
 <pre><code class="language-bash">docker build -t ultimateserver .
-docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></pre>
+docker run -p 11001:11001 -p 11002:11002 -p 11003:11003/udp ultimateserver</code></pre>
 
 <h2 id="usage">Usage</h2>
 <h3 id="accessing-the-dashboard">Accessing the Dashboard</h3>
@@ -323,19 +336,19 @@ docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></p
 <h2 id="configuration">Configuration</h2>
 <p>The server uses a <code>config.json</code> file for configuration:</p>
 <pre><code class="language-json">{
-  "Ip": "0.0.0.0",
-  "MaxConnections": 50,
-  "PasswordMinLength": 8,
-  "RequireSpecialChars": true,
-  "MaxFailedLoginAttempts": 5,
-  "LockoutDurationMinutes": 30,
-  "JwtExpiryHours": 24,
-  "RefreshTokenDays": 7,
-  "MaxRequestSizeMB": 100,
-  "EnableCompression": true,
-  "CacheExpiryMinutes": 15,
-  "ConnectionPoolSize": 10,
-  "PluginsDirectory": "plugins"
+"Ip": "0.0.0.0",
+"MaxConnections": 50,
+"PasswordMinLength": 8,
+"RequireSpecialChars": true,
+"MaxFailedLoginAttempts": 5,
+"LockoutDurationMinutes": 30,
+"JwtExpiryHours": 24,
+"RefreshTokenDays": 7,
+"MaxRequestSizeMB": 100,
+"EnableCompression": true,
+"CacheExpiryMinutes": 15,
+"ConnectionPoolSize": 10,
+"PluginsDirectory": "plugins"
 }</code></pre>
 
 <h3 id="configuration-options">Configuration Options</h3>
@@ -382,6 +395,23 @@ docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></p
 <li>Progress tracking during upload</li>
 </ul>
 
+<h2 id="voice-chat">🎤 Real-Time Voice Chat</h2>
+<p>UltimateServer includes a high-performance, low-latency voice chat server that allows multiple clients to communicate in real-time.</p>
+
+<h3 id="how-it-works">How It Works</h3>
+<p>The voice server runs on a separate UDP port. Clients capture audio from their microphone, compress it, and send it to the server. The server then forwards this audio data to all other connected clients, who play it back through their speakers.</p>
+
+<h3 id="using-the-voice-client">Using the Voice Client</h3>
+<p>A sample C# client application is provided to connect to the voice server. You can run multiple instances of this client to simulate a conversation.</p>
+<pre><code class="language-bash"># Run the first client
+dotnet VoiceClient.dll
+
+Run the second client (from a different terminal)
+dotnet VoiceClient.dll
+</code></pre>
+
+<p>Ensure you replace the placeholders with your server's IP address and the configured voice port.</p>
+
 <h2 id="logging">Logging</h2>
 <p>The server maintains detailed logs in the <code>logs/</code> directory:</p>
 <ul>
@@ -410,6 +440,14 @@ docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></p
 <li><strong>Verify Packages</strong>: Ensure the <code>Microsoft.Extensions.DependencyInjection</code> NuGet package is installed.</li>
 <li><strong>Check Program.cs</strong>: Make sure all services (like `FilePaths`, `ServerSettings`) are registered in the DI container.</li>
 </ul>
+
+<h3 id="voice-chat-issues">Voice Chat Issues</h3>
+<ol>
+<li><strong>Client Cannot Connect:</strong> Ensure the <code>VoicePort</code> (default 11003) is open in your server's firewall and, if applicable, in your hosting provider's network security group. Remember that UDP traffic must be allowed.</li>
+<li><strong>No Audio on Second Client:</strong> This is often caused by <strong>Symmetric NAT</strong> when both clients are on the same local network. For testing, try connecting clients from different networks. The server will log when a client connects and forwards packets.</li>
+<li><strong>Poor Audio Quality or Noise:</strong> Ensure the client application has permission to access the microphone in your OS settings. The provided client uses a high-quality format by default; using lower quality formats (like 8-bit) can introduce noise.</li>
+<li><strong>Server Receives No Data:</strong> If the server logs show no new client connections, use a network packet sniffer like <code>tcpdump</code> on the server host or <a href="https://www.wireshark.org/">Wireshark</a> on the client to verify if UDP packets are being sent and received.</li>
+</ol>
 
 <h3 id="videos-not-loading">Videos Not Loading</h3>
 <ol>
@@ -446,4 +484,5 @@ docker run -p 11001:11001 -p 11002:11002 -p 11003:11003 ultimateserver</code></p
 <li>Commit your changes (<code>git commit -m 'Add some AmazingFeature'</code>)</li>
 <li>Push to the branch (<code>git push origin feature/AmazingFeature</code>)</li>
 <li>Open a Pull Request</li>
-</ol
+</ol>
+</div>
