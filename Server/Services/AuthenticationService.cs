@@ -197,10 +197,20 @@ namespace UltimateServer.Services
 
         public bool ValidatePasswordResetToken(User user, string token)
         {
-            // In a real implementation, you would store the token with an expiry date
-            // For this example, we'll just check if the token matches
-            // In production, you would check against a stored token and expiry
-            return !string.IsNullOrEmpty(token) && token.Length > 20;
+            return user != null &&
+                   !string.IsNullOrEmpty(token) &&
+                   user.PasswordResetToken == token &&
+                   user.PasswordResetTokenExpiry > DateTime.UtcNow;
+        }
+
+        public string GenerateResetToken()
+        {
+            // Use a cryptographically secure random number generator
+            var randomNumber = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            // Convert to a URL-safe base64 string
+            return Convert.ToBase64String(randomNumber).Replace("+", "-").Replace("/", "_").TrimEnd('=');
         }
     }
 }

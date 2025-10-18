@@ -24,6 +24,7 @@ namespace UltimateServer.Services
         private readonly VideoService _videoService;
         private readonly CompressionService _compressionService;
         private readonly PluginManager _pluginManager;
+        private readonly ConfigManager _configManager;
         private readonly IServiceProvider _serviceProvider; // Added for DI
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
@@ -37,7 +38,8 @@ namespace UltimateServer.Services
             AuthenticationService authService,
             VideoService videoService,
             PluginManager pluginManager,
-            IServiceProvider serviceProvider) // Injected IServiceProvider
+            IServiceProvider serviceProvider,
+            ConfigManager configManager) // Injected IServiceProvider
         {
             _port = settings.WebPort;
             _ip = settings.Ip;
@@ -50,6 +52,7 @@ namespace UltimateServer.Services
             _serviceProvider = serviceProvider;
             _compressionService = new CompressionService(new ServerConfig(), logger);
             _cts = new CancellationTokenSource();
+            _configManager = configManager;
         }
 
         public void Start()
@@ -247,6 +250,17 @@ namespace UltimateServer.Services
                             SendUnauthorized(response);
                         break;
 
+
+                    case "/api/request-password-reset":
+                        // This endpoint does not require authentication
+                        await HandleRequestPasswordResetAsync(request, response);
+                        break;
+
+                    case "/api/confirm-password-reset":
+                        // This endpoint also does not require authentication, as the user is not logged in
+                        await HandleConfirmPasswordResetAsync(request, response);
+                        break;
+
                     default:
                         // Handle plugin enable/disable (placeholder)
                         if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
@@ -305,6 +319,74 @@ namespace UltimateServer.Services
         // ========================================================================
         // API ENDPOINTS
         // ========================================================================
+
+        private async Task HandleRequestPasswordResetAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var data = JsonConvert.DeserializeObject<Dictionary<string, string>>(body);
+
+                if (data != null && data.TryGetValue("email", out var email))
+                {
+                    var (success, message) = await _userService.ResetPasswordAsync(email);
+                    await WriteJsonResponseAsync(response, new { success, message });
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Email is required" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Password reset request error: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+            }
+        }
+
+        private async Task HandleConfirmPasswordResetAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST allowed" });
+                return;
+            }
+
+            try
+            {
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var resetRequest = JsonConvert.DeserializeObject<ChangePasswordRequest>(body);
+
+                if (resetRequest != null)
+                {
+                    var (success, message) = await _userService.ConfirmPasswordResetAsync(resetRequest);
+                    await WriteJsonResponseAsync(response, new { success, message });
+                }
+                else
+                {
+                    response.StatusCode = 400;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Invalid request data" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Password reset confirmation error: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+            }
+        }
 
         private async Task HandleLoginAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
@@ -673,7 +755,7 @@ namespace UltimateServer.Services
             {
                 uptime = (DateTime.Now - Process.GetCurrentProcess().StartTime).ToString(@"hh\:mm\:ss"),
                 users = _userService.Users.Count,
-                maxConnections = 50,
+                maxConnections = _configManager.Config.MaxConnections,
                 protocol = 1
             };
             await WriteJsonResponseAsync(response, stats);

@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json;
-using UltimateServer.Models;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using UltimateServer.Events;
+using UltimateServer.Models;
 
 namespace UltimateServer.Services
 {
@@ -11,6 +12,7 @@ namespace UltimateServer.Services
         private readonly AuthenticationService _authService;
         private readonly ValidationService _validationService;
         private readonly CacheService _cacheService;
+        private readonly EmailService _emailService;
         private readonly IEventBus _eventBus;
         private readonly object _userLock = new();
 
@@ -23,7 +25,8 @@ namespace UltimateServer.Services
             AuthenticationService authService,
             ValidationService validationService,
             CacheService cacheService,
-            IEventBus eventBus)
+            IEventBus eventBus,
+            EmailService emailService)
         {
             _usersFile = filePaths.UsersFile; // <-- Get the path from the object
             _logger = logger;
@@ -31,6 +34,7 @@ namespace UltimateServer.Services
             _validationService = validationService;
             _cacheService = cacheService;
             _eventBus = eventBus;
+            _emailService = emailService;
             Users = new List<User>();
         }
 
@@ -125,7 +129,7 @@ namespace UltimateServer.Services
                     Password = _authService.HashPassword(request.Password),
                     Email = request.Email,
                     uuid = Guid.NewGuid(),
-                    Role = request.Role,
+                    Role = "user",
                     RefreshToken = _authService.GenerateRefreshToken(),
                     RefreshTokenExpiry = DateTime.UtcNow.AddDays(7)
                 };
@@ -236,45 +240,89 @@ namespace UltimateServer.Services
             return (true, "Password changed successfully");
         }
 
-        public async Task<(bool success, string message)> ResetPasswordAsync(PasswordResetRequest request)
+        // This method now ONLY handles the initial request
+        public async Task<(bool success, string message)> ResetPasswordAsync(string email)
         {
-            var user = Users.FirstOrDefault(u => u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase));
+            var user = Users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
             if (user == null)
             {
                 // Don't reveal that the email doesn't exist for security reasons
-                return (true, "If the email exists, a password reset link has been sent");
+                return (true, "If the email exists, a password reset link has been sent.");
             }
 
-            // Generate password reset token (in a real app, this would be sent via email)
-            var resetToken = _authService.GeneratePasswordResetToken();
+            // 1. Generate a secure token
+            var resetToken = _authService.GenerateResetToken();
 
-            // Store the token with expiry (in a real app, this would be in a separate table)
-            // For this example, we'll just log it
-            _logger.Log($"🔑 Password reset token for {user.Email}: {resetToken}");
+            // 2. Save the token and its expiry to the user's record
+            user.PasswordResetToken = resetToken;
+            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token is valid for 1 hour
 
-            return (true, "If the email exists, a password reset link has been sent");
+            // IMPORTANT: You must save these changes to your database!
+            // await _context.SaveChangesAsync(); // If you're using Entity Framework
+
+            // 3. Create the reset link
+            // This should point to the URL of your password reset page
+            var resetLink = $"https://dashboard.voidborn-games.ir/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(user.Email)}";
+
+            // 4. Update your email template to use the link
+            var emailBody = _emailService.verifyCodeEmail
+                .Replace("%User_Name%", user.Username)
+                .Replace("%Username%", user.Username)
+                .Replace("%Reset_Link%", resetLink); // Use a new placeholder for the link
+
+            // 5. Send the email
+            await _emailService.SendAsync(
+                    user.Email,
+                    "Reset Your Password",
+                    emailBody,
+                    true);
+
+            _logger.Log($"🔑 Password reset token for {user.Email} is: {resetToken}");
+
+            return (true, "If the email exists, a password reset link has been sent.");
         }
 
         public async Task<(bool success, string message)> ConfirmPasswordResetAsync(ChangePasswordRequest request)
         {
-            // In a real implementation, you would validate the token against a stored token
-            // For this example, we'll just check if the token looks valid
-            if (!_authService.ValidatePasswordResetToken(null, request.Token))
+            // 1. Find the user by their email address first.
+            // This is a good practice to ensure the token belongs to the correct user.
+            var user = Users.FirstOrDefault(u => u.PasswordResetToken.Equals(request.Token, StringComparison.OrdinalIgnoreCase));
+
+            // If the user doesn't exist, we can't proceed. Don't reveal this specifically.
+            if (user == null)
             {
-                return (false, "Invalid or expired reset token");
+                return (false, "Invalid or expired reset token.");
             }
 
+            // 2. Now, validate the token against the found user.
+            // The validation method checks if the token matches and is not expired.
+            if (!_authService.ValidatePasswordResetToken(user, request.Token))
+            {
+                return (false, "Invalid or expired reset token.");
+            }
+
+            // 3. Validate the new password's strength.
             if (!_validationService.IsStrongPassword(request.NewPassword))
             {
-                return (false, "New password does not meet security requirements");
+                return (false, "New password does not meet security requirements.");
             }
 
-            // In a real implementation, you would find the user associated with the token
-            // For this example, we'll just return success
-            _logger.Log($"✅ Password reset confirmed with token: {request.Token.Substring(0, 10)}...");
+            // 4. Hash the new password.
+            string newPasswordHash = _authService.HashPassword(request.NewPassword);
 
-            return (true, "Password reset successfully");
+            // 5. Update the user's password and invalidate the token.
+            user.Password = newPasswordHash;
+            user.PasswordResetToken = null; // Invalidate the token
+            user.PasswordResetTokenExpiry = DateTime.MinValue; // Invalidate the expiry
+
+            // 6. Save the changes to the database.
+            // await _context.SaveChangesAsync(); // Uncomment if using Entity Framework
+
+            await SaveUsersAsync();
+            _logger.Log($"✅ Password reset successfully for user: {user.Email}");
+
+            return (true, "Your password has been reset successfully. You can now log in.");
         }
 
         public async Task<(bool success, string message)> UpdateUserProfileAsync(string username, User updatedUser)

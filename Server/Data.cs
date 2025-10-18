@@ -23,6 +23,8 @@ namespace UltimateServer.Models
         public DateTime? LockedUntil { get; set; }
         public string RefreshToken { get; set; } = "";
         public DateTime RefreshTokenExpiry { get; set; } = DateTime.UtcNow.AddDays(7);
+        public string PasswordResetToken { get; set; }
+        public DateTime PasswordResetTokenExpiry { get; set; }
     }
 
     public class ServerConfig

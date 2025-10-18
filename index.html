@@ -242,6 +242,15 @@ input[type="text"]:focus, input[type="password"]:focus {
   font-size: 13px;
 }
 
+.login-footer a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
 .loading-spinner {
   display: none;
   width: 20px;
@@ -1268,12 +1277,13 @@ footer {
 <!-- Login Page -->
 <div class="login-container" id="loginPage">
   <div class="login-card">
-    <div class="login-header">
-      <h1><i class="fas fa-server"></i> UltimateServer</h1>
-      <p>Sign in to access your dashboard</p>
-    </div>
-    
+    <!-- Standard Login Form -->
     <form id="loginForm">
+      <div class="login-header">
+        <h1><i class="fas fa-server"></i> UltimateServer</h1>
+        <p>Sign in to access your dashboard</p>
+      </div>
+      
       <div class="form-group">
         <label for="username">Username</label>
         <div class="input-group">
@@ -1310,6 +1320,78 @@ footer {
       <div class="error-message" id="errorMessage"></div>
       <div class="success-message" id="successMessage"></div>
     </form>
+
+    <!-- Request Password Reset Form -->
+    <div id="requestResetForm" style="display: none;">
+        <div class="login-header">
+            <h1><i class="fas fa-key"></i> Reset Password</h1>
+            <p>Enter your email address to receive a password reset link</p>
+        </div>
+        
+        <form id="resetRequestForm">
+            <div class="form-group">
+                <label for="resetEmail">Email</label>
+                <div class="input-group">
+                    <i class="fas fa-envelope"></i>
+                    <input type="text" id="resetEmail" name="resetEmail" placeholder="Enter your email" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="login-btn" id="resetRequestBtn">
+                <i class="fas fa-paper-plane"></i>
+                <span id="resetRequestBtnText">Send Reset Link</span>
+                <div class="loading-spinner" id="resetRequestSpinner"></div>
+            </button>
+            
+            <div class="error-message" id="resetErrorMessage"></div>
+            <div class="success-message" id="resetSuccessMessage"></div>
+        </form>
+
+        <div class="login-footer">
+            <a href="#" id="backToLoginLink">Remember your password? Sign In</a>
+        </div>
+    </div>
+
+    <!-- Confirm Password Reset Form -->
+    <div id="confirmResetForm" style="display: none;">
+        <div class="login-header">
+            <h1><i class="fas fa-lock"></i> Set New Password</h1>
+            <p>Enter your new password below</p>
+        </div>
+        
+        <form id="resetConfirmForm">
+            <input type="hidden" id="resetToken">
+            <input type="hidden" id="resetEmail">
+
+            <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password" required>
+                </div>
+                <div class="password-strength">
+                    <div class="password-strength-bar" id="newPasswordStrength"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmNewPassword">Confirm New Password</label>
+                <div class="input-group">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="confirmNewPassword" name="confirmNewPassword" placeholder="Confirm new password" required>
+                </div>
+            </div>
+            
+            <button type="submit" class="login-btn" id="resetConfirmBtn">
+                <i class="fas fa-check"></i>
+                <span id="resetConfirmBtnText">Reset Password</span>
+                <div class="loading-spinner" id="resetConfirmSpinner"></div>
+            </button>
+            
+            <div class="error-message" id="confirmErrorMessage"></div>
+            <div class="success-message" id="confirmSuccessMessage"></div>
+        </form>
+    </div>
     
     <div class="login-footer">
       &copy; 2025 UltimateServer · VoidbornGames
@@ -1475,6 +1557,10 @@ footer {
       <div class="tab-content" id="pluginsTab">
         <div class="card">
           <h3><i class="fas fa-plug"></i> Plugin Management</h3>
+          <!-- NEW: Reload Plugins Button -->
+          <button onclick="reloadPlugins()" style="margin-bottom: 20px;">
+            <i class="fas fa-sync-alt"></i> Reload Plugins
+          </button>
           <div id="pluginsList">
             <div class="empty-plugins">
               <i class="fas fa-plug"></i>
@@ -1709,11 +1795,14 @@ function showSessionExpiredModal() {
 // =============================================================================
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Check if user is already authenticated and show the appropriate view
-  if (AuthManager.isAuthenticated()) {
+  // First, check if we are on a password reset flow
+  checkForResetToken();
+
+  // If not, proceed with normal authentication check
+  if (!document.getElementById('resetToken').value && AuthManager.isAuthenticated()) {
     showDashboard();
-  } else {
-    showLogin();
+  } else if (!document.getElementById('resetToken').value) {
+    showLogin(); // This will now correctly show the login form or the reset form
   }
 });
 
@@ -1726,7 +1815,7 @@ function showLogin() {
   const loginBtnText = document.getElementById('loginBtnText');
   const loginSpinner = document.getElementById('loginSpinner');
   const errorMessage = document.getElementById('errorMessage');
-  const successMessage = document.getElementById('successMessage');
+      const successMessage = document.getElementById('successMessage');
   const passwordInput = document.getElementById('password');
   const passwordStrength = document.getElementById('passwordStrength');
   
@@ -1794,11 +1883,12 @@ function showLogin() {
     }
   });
   
-  // Handle forgot password link (simple helper for demo purposes)
-  document.querySelector('.forgot-password').addEventListener('click', function(e) {
+  // Handle forgot password link (now shows the reset request form)
+  forgotPasswordLink.addEventListener('click', function(e) {
     e.preventDefault();
-    errorMessage.textContent = 'Default credentials: admin / admin123';
-    errorMessage.style.display = 'block';
+    loginForm.style.display = 'none';
+    requestResetForm.style.display = 'block';
+    confirmResetForm.style.display = 'none';
   });
 }
 
@@ -1845,6 +1935,166 @@ async function logout() {
 function redirectToLogin() {
   logout();
 }
+
+// =============================================================================
+// PASSWORD RESET FUNCTIONALITY
+// =============================================================================
+
+// Get references to the new form elements
+const loginForm = document.getElementById('loginForm');
+const requestResetForm = document.getElementById('requestResetForm');
+const confirmResetForm = document.getElementById('confirmResetForm');
+
+const forgotPasswordLink = document.querySelector('.forgot-password');
+const backToLoginLink = document.getElementById('backToLoginLink');
+
+// --- Show/Hide Forms ---
+backToLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    loginForm.style.display = 'block';
+    requestResetForm.style.display = 'none';
+    confirmResetForm.style.display = 'none';
+});
+
+// --- Handle Request Password Reset ---
+document.getElementById('resetRequestForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const email = document.getElementById('resetEmail').value;
+    const btn = document.getElementById('resetRequestBtn');
+    const btnText = document.getElementById('resetRequestBtnText');
+    const spinner = document.getElementById('resetRequestSpinner');
+    const errorMsg = document.getElementById('resetErrorMessage');
+    const successMsg = document.getElementById('resetSuccessMessage');
+
+    // Show loading state
+    btn.disabled = true;
+    btnText.textContent = 'Sending...';
+    spinner.style.display = 'inline-block';
+    errorMsg.style.display = 'none';
+    successMsg.style.display = 'none';
+
+    try {
+        const response = await apiRequest(`${CONFIG.baseUrl}/api/request-password-reset`, {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            successMsg.textContent = data.message;
+            successMsg.style.display = 'block';
+            // Optionally, clear the form
+            document.getElementById('resetEmail').value = '';
+        } else {
+            errorMsg.textContent = data.message;
+            errorMsg.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Reset request error:', error);
+        errorMsg.textContent = 'An error occurred. Please try again.';
+        errorMsg.style.display = 'block';
+    } finally {
+        // Reset button state
+        btn.disabled = false;
+        btnText.textContent = 'Send Reset Link';
+        spinner.style.display = 'none';
+    }
+});
+
+// --- Handle Confirm Password Reset ---
+document.getElementById('resetConfirmForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmNewPassword').value;
+    const token = document.getElementById('resetToken').value;
+    const email = document.getElementById('resetEmail').value;
+
+    if (newPassword !== confirmPassword) {
+        document.getElementById('confirmErrorMessage').textContent = 'Passwords do not match.';
+        document.getElementById('confirmErrorMessage').style.display = 'block';
+        return;
+    }
+
+    const btn = document.getElementById('resetConfirmBtn');
+    const btnText = document.getElementById('resetConfirmBtnText');
+    const spinner = document.getElementById('resetConfirmSpinner');
+    const errorMsg = document.getElementById('confirmErrorMessage');
+    const successMsg = document.getElementById('confirmSuccessMessage');
+
+    // Show loading state
+    btn.disabled = true;
+    btnText.textContent = 'Resetting...';
+    spinner.style.display = 'inline-block';
+    errorMsg.style.display = 'none';
+    successMsg.style.display = 'none';
+
+    try {
+        const response = await apiRequest(`${CONFIG.baseUrl}/api/confirm-password-reset`, {
+            method: 'POST',
+            body: JSON.stringify({ email, token, newPassword })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            successMsg.textContent = data.message;
+            successMsg.style.display = 'block';
+            // Redirect to login after a short delay
+            setTimeout(() => {
+                loginForm.style.display = 'block';
+                confirmResetForm.style.display = 'none';
+                showToast('Success', data.message, 'success');
+            }, 2000);
+        } else {
+            errorMsg.textContent = data.message;
+            errorMsg.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Reset confirmation error:', error);
+        errorMsg.textContent = 'An error occurred. Please try again.';
+        errorMsg.style.display = 'block';
+    } finally {
+        // Reset button state
+        btn.disabled = false;
+        btnText.textContent = 'Reset Password';
+        spinner.style.display = 'none';
+    }
+});
+
+// --- Password Strength Indicator for New Password ---
+document.getElementById('newPassword').addEventListener('input', function() {
+    const password = this.value;
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.match(/[a-z]+/)) strength++;
+    if (password.match(/[A-Z]+/)) strength++;
+    if (password.match(/[0-9]+/)) strength++;
+    if (password.match(/[$@#&!]+/)) strength++;
+    
+    const strengthBar = document.getElementById('newPasswordStrength');
+    strengthBar.className = 'password-strength-bar';
+    if (strength <= 2) strengthBar.classList.add('strength-weak');
+    else if (strength === 3 || strength === 4) strengthBar.classList.add('strength-medium');
+    else strengthBar.classList.add('strength-strong');
+});
+
+// --- Check for reset token on page load ---
+function checkForResetToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const email = urlParams.get('email');
+
+    if (token && email) {
+        // Hide login and request forms, show confirm form
+        loginForm.style.display = 'none';
+        requestResetForm.style.display = 'none';
+        confirmResetForm.style.display = 'block';
+
+        // Populate hidden fields
+        document.getElementById('resetToken').value = token;
+        document.getElementById('resetEmail').value = email;
+    }
+}
+
 
 // =============================================================================
 // DASHBOARD FUNCTIONALITY
@@ -1945,6 +2195,21 @@ const memoryChart = new Chart(document.getElementById('memoryChart').getContext(
     }
   }
 });
+
+  function updateCharts(cpu, memory) {
+    const now = new Date().toLocaleTimeString();
+    chartLabels.push(now);
+    cpuData.push(cpu);
+    memoryData.push(memory);
+    if (chartLabels.length > maxDataPoints) {
+      chartLabels.shift();
+      cpuData.shift();
+      memoryData.shift();
+    }
+    cpuChart.update('none');
+    memoryChart.update('none');
+  }
+
   // --- DATA FETCHING FUNCTIONS ---
   async function fetchStats() {
     try {
@@ -2139,6 +2404,36 @@ const memoryChart = new Chart(document.getElementById('memoryChart').getContext(
       `;
     }
   }
+
+  // NEW: Function to handle the reload button click
+  window.reloadPlugins = async function() {
+    const reloadBtn = document.querySelector('button[onclick="reloadPlugins()"]');
+    const originalHtml = reloadBtn.innerHTML;
+    
+    // Show loading state
+    reloadBtn.disabled = true;
+    reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Reloading...';
+    
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/plugins/reload`, { method: 'POST' });
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        showToast('Plugins Reloaded', result.message || 'Plugins have been reloaded successfully.', 'success');
+        // Refresh the plugins list in the UI
+        fetchPlugins(); 
+      } else {
+        showToast('Reload Failed', result.message || 'Failed to reload plugins.', 'error');
+      }
+    } catch (error) {
+      console.error('Error reloading plugins:', error);
+      showToast('Reload Failed', error.message, 'error');
+    } finally {
+      // Restore button state
+      reloadBtn.disabled = false;
+      reloadBtn.innerHTML = originalHtml;
+    }
+  };
 
   window.togglePlugin = async function(pluginId, enable) {
     try {

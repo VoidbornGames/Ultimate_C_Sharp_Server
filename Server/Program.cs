@@ -121,12 +121,8 @@ namespace UltimateServer
 
             // Sends The Server Start Message!
             // Currently its off to save emails.
-            if (false)
-                await serviceProvider.GetRequiredService<EmailService>().SendAsync(
-                    "alirezajanaki33@gmail.com",
-                    "UltimateServer",
-                    "UltimateServer have been started! You can access it through: 'https://dashboard.voidborn-games.ir'",
-                    false);
+            if (true)
+                await serviceProvider.GetRequiredService<UserService>().ResetPasswordAsync("alirezajanaki33@gmail.com");
             await Task.Delay(Timeout.Infinite);
         }
     }
