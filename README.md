@@ -136,7 +136,7 @@
 
 <h2 id="requirements">Requirements</h2>
 <ul>
-<li>.NET 6.0 SDK or Runtime</li>
+<li>.NET 8.0 SDK or Runtime</li>
 <li>Windows, Linux, or Docker-compatible environment</li>
 <li>Ports open for TCP connections (default: <code>11001</code> for server, <code>11002</code> for web dashboard)</li>
 <li>Port open for UDP connections (default: <code>11003</code> for voice chat)</li>
@@ -162,7 +162,7 @@ cd Ultimate_C_Sharp_Server</code></pre>
 
 <h3 id="prerequisites">Prerequisites</h3>
 <ul>
-<li>.NET 6.0 SDK</li>
+<li>.NET 8.0 SDK</li>
 <li>A C# IDE like Visual Studio 2022, VS Code, or JetBrains Rider.</li>
 <li>A copy of the UltimateServer source code.</li>
 </ul>
@@ -224,7 +224,7 @@ await Task.CompletedTask;
 <h3 id="step-4-build-the-plugin">Step 4: Build the Plugin</h3>
 <p>From inside your plugin's directory (<code>MyAwesomePlugin</code>), run the build command:</p>
 <pre><code class="language-bash">dotnet build -c Release</code></pre>
-<p>This will compile your code and produce a <code>MyAwesomePlugin.dll</code> file inside the <code>bin/Release/net6.0/</code> directory.</p>
+<p>This will compile your code and produce a <code>MyAwesomePlugin.dll</code> file inside the <code>bin/Release/net8.0/</code> directory.</p>
 
 <h3 id="step-5-deploy-the-plugin">Step 5: Deploy the Plugin</h3>
 <ol>
