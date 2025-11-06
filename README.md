@@ -2,6 +2,7 @@
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidgames.ir/" target="_blank"><strong>Live Dashboard</strong></a></p>
+<p>Currently the live dashboard login credentials has been change because of abuse!</p>
 
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
