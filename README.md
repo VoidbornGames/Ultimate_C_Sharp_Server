@@ -4,6 +4,14 @@
 <p>Check out the live dashboard here: <a href="https://dashboard.voidgames.ir/" target="_blank"><strong>Live Dashboard</strong></a></p>
 <p>Currently the live dashboard login credentials has been change because of abuse!</p>
 
+<h2 id="supported-os">Supported OS's</h2>
+<ul>
+<li>Ubuntu 22.04</a></li>
+<li>Ubuntu 24.04</a></li>
+</ul>
+
+
+
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
 <li><a href="#features">Features</a></li>
@@ -137,10 +145,11 @@
 <h2 id="requirements">Requirements</h2>
 <ul>
 <li>.NET 8.0 SDK or Runtime</li>
-<li>Windows, Linux, or Docker-compatible environment</li>
-<li>Ports open for TCP connections (default: <code>11001</code> for server, <code>11002</code> for web dashboard)</li>
+<li>PHP 8.3</li>
+<li>Nginx</li>
+<li>Linux, or Docker-compatible environment</li>
+<li>Ports open for connections (default: <code>11001</code> for server, <code>11002</code> for web dashboard)</li>
 <li>Port open for UDP connections (default: <code>11003</code> for voice chat)</li>
-<li>Modern web browser with JavaScript enabled</li>
 </ul>
 
 <h2 id="installation">Installation</h2>
