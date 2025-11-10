@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection; // Required for IServiceProvider
+using Newtonsoft.Json;
+using Server.Services;
+using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
@@ -8,9 +11,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using UltimateServer.Models;
-using Newtonsoft.Json;
 using UltimateServer.Services;
-using Microsoft.Extensions.DependencyInjection; // Required for IServiceProvider
 
 namespace UltimateServer.Services
 {
@@ -41,7 +42,7 @@ namespace UltimateServer.Services
             IServiceProvider serviceProvider,
             ConfigManager configManager) // Injected IServiceProvider
         {
-            _port = settings.WebPort;
+            _port = settings.httpPort;
             _ip = settings.Ip;
             _logger = logger;
             _userService = userService;
@@ -261,6 +262,13 @@ namespace UltimateServer.Services
                         await HandleConfirmPasswordResetAsync(request, response);
                         break;
 
+                    case "/api/sites":
+                        if (ValidateAuthentication(request))
+                            await HandleRequestSitesAsync(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
                     default:
                         // Handle plugin enable/disable (placeholder)
                         if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
@@ -319,6 +327,100 @@ namespace UltimateServer.Services
         // ========================================================================
         // API ENDPOINTS
         // ========================================================================
+
+        private async Task HandleRequestSitesAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod == "GET")
+            {
+                try
+                {
+                    // Get all sites (just names)
+                    var sites = _serviceProvider.GetRequiredService<SitePress>().sites;
+                    await WriteJsonResponseAsync(response, sites);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Error fetching sites: {ex.Message}");
+                    response.StatusCode = 500;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+                }
+            }
+            else if (request.HttpMethod == "POST")
+            {
+                try
+                {
+                    using var reader = new StreamReader(request.InputStream);
+                    string body = await reader.ReadToEndAsync();
+                    var data = JsonConvert.DeserializeObject<CreateSiteRequest>(body);
+
+                    if (data != null && data.Port >= 1000 && data.Port <= 50000 && !string.IsNullOrEmpty(data.Name))
+                    {
+                        bool success;
+                        string message;
+
+                        if (_serviceProvider.GetRequiredService<SitePress>().sites.TryGetValue(data.Name, out _))
+                            (success, message) = (false, "Failed to create site - already exist");
+
+                        if (await _serviceProvider.GetRequiredService<SitePress>().CreateSite(data.Name, data.Port))
+                            (success, message) = (true, "Site created successfully");
+                        else
+                            (success, message) = (false, "Failed to create site - port may be in use");
+
+                        await WriteJsonResponseAsync(response, new { success, message });
+                    }
+                    else
+                    {
+                        response.StatusCode = 400;
+                        await WriteJsonResponseAsync(response, new { success = false, message = "Name and Port are required" });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Site creation error: {ex.Message}");
+                    response.StatusCode = 500;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+                }
+            }
+            else if (request.HttpMethod == "DELETE")
+            {
+                try
+                {
+                    using var reader = new StreamReader(request.InputStream);
+                    string body = await reader.ReadToEndAsync();
+                    var data = JsonConvert.DeserializeObject<DeleteSiteRequest>(body);
+
+                    if (data != null && !string.IsNullOrEmpty(data.Name))
+                    {
+                        bool success;
+                        string message;
+
+                        if (await _serviceProvider.GetRequiredService<SitePress>().DeleteSite(data.Name))
+                            (success, message) = (true, "Site deleted successfully");
+                        else
+                            (success, message) = (false, "Site not found");
+
+                        await WriteJsonResponseAsync(response, new { success, message });
+                    }
+                    else
+                    {
+                        response.StatusCode = 400;
+                        await WriteJsonResponseAsync(response, new { success = false, message = "Site name is required" });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Site deletion error: {ex.Message}");
+                    response.StatusCode = 500;
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Server error" });
+                }
+            }
+            else
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Method not allowed" });
+                return;
+            }
+        }
 
         private async Task HandleRequestPasswordResetAsync(HttpListenerRequest request, HttpListenerResponse response)
         {

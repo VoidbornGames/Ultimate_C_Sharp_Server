@@ -1,5 +1,6 @@
 ﻿// In UltimateServer.Services/PluginContext.cs
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -16,17 +17,15 @@ namespace UltimateServer.Services
     public class PluginContext : IPluginContext
     {
         public Logger Logger { get; }
-        public EmailService EmailService { get; }
         public IEventBus EventBus { get; }
         public IServiceProvider ServiceProvider { get; }
 
         private readonly Dictionary<string, Func<HttpListenerRequest, Task>> _routes = new();
 
         // FIXED: Use the server's logger instance directly
-        public PluginContext(Logger serverLogger, EmailService emailService, IEventBus eventBus, IServiceProvider serviceProvider)
+        public PluginContext(Logger serverLogger, IEventBus eventBus, IServiceProvider serviceProvider)
         {
             Logger = serverLogger;
-            EmailService = emailService;
             EventBus = eventBus;
             ServiceProvider = serviceProvider;
         }

@@ -158,7 +158,7 @@ namespace UltimateServer.Services
             }
         }
 
-        // ... (The rest of the VideoService methods remain unchanged) ...
+
         public bool IsVideoFile(string filePath)
         {
             if (string.IsNullOrWhiteSpace(filePath))

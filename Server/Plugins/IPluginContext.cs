@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -13,7 +14,6 @@ namespace UltimateServer.Plugins
     public interface IPluginContext
     {
         Logger Logger { get; }
-        EmailService EmailService { get; }
         IEventBus EventBus { get; }
         IServiceProvider ServiceProvider { get; }
         void RegisterApiRoute(string path, Func<HttpListenerRequest, Task> handler);

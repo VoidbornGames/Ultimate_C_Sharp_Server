@@ -2,9 +2,12 @@
 
 namespace UltimateServer.Models
 {
+
     public class Data
     {
         public int protocolVersion { get; set; } = 1;
+        public string userName { get; set; } = "";
+        public string encryptedPassword { get; set; } = "";
         public string theCommand { get; set; } = "";
         public string jsonData { get; set; } = "";
     }
@@ -29,6 +32,7 @@ namespace UltimateServer.Models
 
     public class ServerConfig
     {
+        public bool DebugMode { get; set; } = false;
         public string Ip { get; set; } = "0.0.0.0";
         public int MaxConnections { get; set; } = 50;
         public string DashboardPasswordHash { get; set; } = "12345678";
@@ -44,8 +48,8 @@ namespace UltimateServer.Models
         public int ConnectionPoolSize { get; set; } = 10;
         public string email_host { get; set; } = "0.0.0.0";
         public int email_port { get; set; } = 11003;
-        public string email_username { get; set; } = "Email_User_Name";
-        public string email_password { get; set; } = "Email_User_Password";
+        public string email_username { get; set; } = "your-smtp-email-username";
+        public string email_password { get; set; } = "your-smtp-email-password";
         public bool email_useSsl { get; set; } = false;
     }
 
@@ -88,6 +92,21 @@ namespace UltimateServer.Models
         public string Email { get; set; }
     }
 
+    public class CreateSiteRequest
+    {
+        [StringLength(100, MinimumLength = 4)]
+        [Required] public string Name { get; set; }
+
+        [Length(50000, 1000)]
+        [Required] public int Port { get; set; }
+    }
+
+    public class DeleteSiteRequest
+    {
+        [StringLength(100, MinimumLength = 4)]
+        public string Name { get; set; }
+    }
+
     public class ChangePasswordRequest
     {
         [Required]
@@ -120,10 +139,10 @@ namespace UltimateServer.Models
     /// </summary>
     public class FilePaths
     {
+        public string ConfigFile { get; set; } = "config.json";
         public string UsersFile { get; set; } = "users.json";
         public string VideosFolder { get; set; } = "videos";
         public string LogsFolder { get; set; } = "logs";
-        public string ConfigFile { get; set; } = "config.json";
     }
 
 
@@ -134,8 +153,8 @@ namespace UltimateServer.Models
     {
         public string Ip { get; set; } = "0.0.0.0";
         public int MaxConnections { get; set; } = 50;
-        public int Port { get; set; }
-        public int WebPort { get; set; }
-        public int VoicePort { get; set; }
+        public int tcpPort { get; set; }
+        public int httpPort { get; set; }
+        public int udpPort { get; set; }
     }
 }

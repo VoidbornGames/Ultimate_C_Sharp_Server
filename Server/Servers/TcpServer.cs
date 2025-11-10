@@ -1,9 +1,10 @@
-﻿using System.Collections.Concurrent;
+﻿using Newtonsoft.Json;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Newtonsoft.Json;
 using UltimateServer.Models;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace UltimateServer.Services
 {
@@ -15,6 +16,7 @@ namespace UltimateServer.Services
         private readonly CommandHandler _commandHandler;
         private TcpListener _listener;
         private CancellationTokenSource _cts;
+        private ServerConfig _config;
         private ConcurrentDictionary<TcpClient, bool> _activeClients = new();
 
         // REPLACE YOUR ENTIRE CONSTRUCTOR WITH THIS ONE
@@ -24,11 +26,12 @@ namespace UltimateServer.Services
             Logger logger,
             CommandHandler commandHandler)
         {
-            _port = settings.Port; // <-- We get the port from the settings object
+            _port = settings.tcpPort; // <-- We get the port from the settings object
             _ip = configManager.Config.Ip;
             _logger = logger;
             _commandHandler = commandHandler;
             _cts = new CancellationTokenSource();
+            _config = configManager.Config;
         }
 
         public void Start()
@@ -46,7 +49,7 @@ namespace UltimateServer.Services
                         var client = await _listener.AcceptTcpClientAsync(_cts.Token);
                         _logger.Log($"🔹 New client connected: {client.Client.RemoteEndPoint}");
 
-                        if (_activeClients.Count >= 50) // This should come from config
+                        if (_activeClients.Count >= _config.MaxConnections) // This should come from config
                         {
                             _logger.Log($"⚠️ Connection refused: max clients reached.");
                             client.Close();
@@ -101,7 +104,10 @@ namespace UltimateServer.Services
 
                     if (!_commandHandler.TryHandleCommand(request, out var response))
                     {
-                        response = new Data { theCommand = "error", jsonData = $"Unknown command: {request.theCommand}" };
+                        if (response.theCommand == "Invalid User")
+                            response = new Data { theCommand = "error", jsonData = $"Invalid username or password" };
+                        else
+                            response = new Data { theCommand = "error", jsonData = $"Unknown command: {request.theCommand}" };
                     }
 
                     await SendResponseAsync(writer, response);

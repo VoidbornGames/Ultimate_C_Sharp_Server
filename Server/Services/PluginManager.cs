@@ -1,5 +1,7 @@
-﻿using System.Reflection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using System.Runtime.Loader;
+using UltimateServer.Events;
 using UltimateServer.Plugins;
 
 namespace UltimateServer.Services
@@ -7,9 +9,8 @@ namespace UltimateServer.Services
     public class PluginManager
     {
         private readonly Logger _logger;
-        private readonly EmailService _emailService;
         private readonly IEventBus _eventBus;
-        private readonly IServiceProvider _serviceProvider;
+        public IServiceProvider _serviceProvider;
 
         // loaded plugin instances (pluginName -> IPlugin)
         private readonly Dictionary<string, IPlugin> _loadedPlugins = new();
@@ -23,10 +24,9 @@ namespace UltimateServer.Services
         // original absolute path -> unique temp copy path
         private readonly Dictionary<string, string> _uniquePaths = new();
 
-        public PluginManager(Logger logger, EmailService emailService, IEventBus eventBus, IServiceProvider serviceProvider)
+        public PluginManager(Logger logger, IEventBus eventBus, IServiceProvider serviceProvider)
         {
             _logger = logger;
-            _emailService = emailService;
             _eventBus = eventBus;
             _serviceProvider = serviceProvider;
         }
@@ -118,13 +118,14 @@ namespace UltimateServer.Services
                             continue;
                         }
 
-                        var context = new PluginContext(_logger, _emailService, _eventBus, _serviceProvider);
+                        var context = new PluginContext(_logger, _eventBus, _serviceProvider);
                         _pluginContexts[plugin.Name] = context;
 
                         await plugin.OnLoadAsync(context);
 
                         _loadedPlugins[plugin.Name] = plugin;
                         _logger.Log($"✅ Loaded plugin: {plugin.Name} v{plugin.Version}");
+                        await _eventBus.PublishAsync(new PluginLoadedEvent(plugin));
                     }
                     catch (Exception ex)
                     {
@@ -154,7 +155,7 @@ namespace UltimateServer.Services
                 {
                     var plugin = pluginEntry.Value;
                     var context = _pluginContexts[plugin.Name];
-                    await plugin.OnUpdateAsync(context);
+                    _ = Task.Run(async() => plugin.OnUpdateAsync(context));
                 }
                 catch (Exception ex)
                 {

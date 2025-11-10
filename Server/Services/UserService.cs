@@ -7,14 +7,15 @@ namespace UltimateServer.Services
 {
     public class UserService
     {
-        private readonly string _usersFile;
-        private readonly Logger _logger;
         private readonly AuthenticationService _authService;
         private readonly ValidationService _validationService;
         private readonly CacheService _cacheService;
         private readonly EmailService _emailService;
-        private readonly IEventBus _eventBus;
+        private readonly Logger _logger;
+
         private readonly object _userLock = new();
+        private readonly IEventBus _eventBus;
+        private readonly string _usersFile;
 
         public List<User> Users { get; private set; }
 
@@ -93,7 +94,7 @@ namespace UltimateServer.Services
                 // Update cache
                 _cacheService.Set("users", Users, TimeSpan.FromMinutes(30));
 
-                _logger.Log("💾 Users saved.");
+                // _logger.Log("💾 Users saved.");
             }
             catch (Exception ex)
             {
@@ -269,16 +270,12 @@ namespace UltimateServer.Services
             var emailBody = _emailService.verifyCodeEmail
                 .Replace("%User_Name%", user.Username)
                 .Replace("%Username%", user.Username)
-                .Replace("%Reset_Link%", resetLink); // Use a new placeholder for the link
+                .Replace("%Reset_Link%", resetLink);
 
             // 5. Send the email
-            await _emailService.SendAsync(
-                    user.Email,
-                    "Reset Your Password",
-                    emailBody,
-                    true);
+            await _emailService.SendAsync(user.Email, "Reset Your Password", emailBody, true);
 
-            _logger.Log($"🔑 Password reset token for {user.Email} is: {resetToken}");
+            _logger.LogSecurity($"🔑 Password reset token for {user.Email} is: {resetToken}");
 
             return (true, "If the email exists, a password reset link has been sent.");
         }

@@ -22,7 +22,7 @@ namespace Server.Servers
 
         public UdpServer(ServerSettings settings, ConfigManager configManager, Logger logger)
         {
-            _port = settings.VoicePort;
+            _port = settings.udpPort;
             _logger = logger;
         }
 
@@ -88,7 +88,7 @@ namespace Server.Servers
             }
             finally
             {
-                _logger.Log("🛑 Voice UDP server stopped.");
+                _logger.Log("🛑 UDP server stopped.");
             }
         }
 
