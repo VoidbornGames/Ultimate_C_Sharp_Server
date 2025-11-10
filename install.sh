@@ -18,7 +18,10 @@ fi
 # 2️⃣ Update and install dependencies
 echo "[1/6] Updating system packages..."
 apt update -y
-apt install -y wget unzip ufw dotnet-sdk-8.0 php8.3 php8.3-cli php8.3-fpm certbot nginx
+apt install -y wget unzip ufw dotnet-sdk-8.0 software-properties-common ca-certificates lsb-release apt-transport-https certbot nginx
+add-apt-repository ppa:ondrej/php
+apt update
+apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql php8.3-curl php8.3-xml php8.3-mbstring php8.3-zip php8.3-gd php8.3-bcmath
 
 # 3️⃣ Create installation directory
 echo "[2/6] Creating installation directory..."
