@@ -154,12 +154,11 @@
 
 <h2 id="installation">Installation</h2>
 <ol>
-<li><strong>Clone the repository</strong>:
-<pre><code class="language-bash">git clone https://github.com/VoidbornGames/Ultimate_C_Sharp_Server.git
-cd Ultimate_C_Sharp_Server</code></pre>
+<li><strong>Run the install script</strong>:
+<pre><code class="language-bash">
+   bash <(curl -s https://raw.githubusercontent.com/VoidbornGames/Ultimate_C_Sharp_Server/main/install.sh)
+</code></pre>
 </li>
-<li><strong>Build the project</strong>:
-<pre><code class="language-bash">dotnet build</code></pre>
 </li>
 </ol>
 
