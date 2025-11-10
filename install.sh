@@ -57,30 +57,8 @@ ufw allow 11004
 ufw reload
 
 # 7️⃣ Create systemd service (auto-start on boot)
-echo "[6/6] Creating systemd service..."
-
-SERVICE_FILE="/etc/systemd/system/ultimateserver.service"
-
-cat > "$SERVICE_FILE" <<EOF
-[Unit]
-Description=UltimateServer
-After=network.target
-
-[Service]
-WorkingDirectory=$INSTALL_DIR
-ExecStart=/usr/bin/dotnet $INSTALL_DIR/Server.dll 11001 11002 11003
-Restart=always
-RestartSec=5
-User=root
-Environment=ASPNETCORE_ENVIRONMENT=Production
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable ultimateserver
-systemctl start ultimateserver
+echo "[6/6] Running the server..."
+dotnet $INSTALL_DIR/Server.dll 11001 11002 11003
 
 echo "✅ UltimateServer installation complete!"
 echo "----------------------------------------"
