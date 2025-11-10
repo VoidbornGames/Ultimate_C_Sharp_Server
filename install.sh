@@ -58,7 +58,8 @@ ufw reload
 
 # 7️⃣ Create systemd service (auto-start on boot)
 echo "[6/6] Running the server..."
-dotnet $INSTALL_DIR/Server.dll 11001 11002 11003
+cd $INSTALL_DIR
+dotnet Server.dll 11001 11002 11003
 
 echo "✅ UltimateServer installation complete!"
 echo "----------------------------------------"
