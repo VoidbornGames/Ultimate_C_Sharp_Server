@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -127,7 +128,7 @@ body {
   font-size: 16px;
 }
 
-input[type="text"], input[type="password"] {
+input[type="text"], input[type="password"], input[type="number"] {
   width: 100%;
   padding: 14px 16px 14px 45px;
   border-radius: 10px;
@@ -138,7 +139,7 @@ input[type="text"], input[type="password"] {
   transition: all 0.3s ease;
 }
 
-input[type="text"]:focus, input[type="password"]:focus {
+input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
@@ -719,7 +720,7 @@ input[type="text"]:focus, input[type="password"]:focus {
 }
 
 /* Form Elements */
-input[type="text"] {
+input[type="text"], input[type="number"] {
   width: 100%;
   padding: 12px 16px;
   border-radius: 8px;
@@ -731,7 +732,7 @@ input[type="text"] {
   transition: all 0.3s ease;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus, input[type="number"]:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
@@ -938,7 +939,7 @@ footer {
 }
 
 .toast-success i {
-  color: var(--success);
+ color: var(--success);
 }
 
 .toast-error i {
@@ -1146,7 +1147,7 @@ footer {
 }
 
 .plugin-form-group input,
-.plugin-form-group select,
+.plugin-for-group select,
 .plugin-form-group textarea {
   padding: 10px 14px;
   border-radius: 8px;
@@ -1270,6 +1271,135 @@ footer {
 
 .empty-plugins p {
   margin-bottom: 20px;
+}
+
+/* Sites Tab Styles */
+.sites-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 500px;
+}
+
+.sites-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sites-form-group label {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.sites-form-group input {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.sites-form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.sites-form-group .error-message {
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 5px;
+  display: none;
+}
+
+.sites-list {
+  margin-top: 30px;
+}
+
+.sites-list h4 {
+  color: var(--text-primary);
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.site-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.site-item:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.site-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.site-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.site-port {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.site-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.site-action-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.site-action-btn.delete {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.site-action-btn.delete:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.site-status {
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.site-status.active {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+}
+
+.site-status.inactive {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
 }
 </style>
 </head>
@@ -1415,6 +1545,9 @@ footer {
     <div class="nav-item" data-tab="pluginsTab">
       <i class="fas fa-plug"></i> <span>Plugins</span>
     </div>
+    <div class="nav-item" data-tab="sitesTab">
+      <i class="fas fa-globe"></i> <span>Sites</span>
+    </div>
   </aside>
 
   <div class="main">
@@ -1521,7 +1654,7 @@ footer {
         <div class="card">
           <h3><i class="fas fa-play-circle"></i> Video Player</h3>
           <video id="videoPlayer" controls style="width:100%;max-height:400px;background:#000;border-radius:8px;display:none;">
-            Your browser does not support the video tag.
+            Your browser does not support video tag.
           </video>
           <div id="loadingMsg" style="text-align:center; padding:20px; display:none;">
             <div class="loading"></div>
@@ -1586,6 +1719,37 @@ footer {
           <div id="pluginUploadStatus"></div>
         </div>
       </div>
+
+      <!-- Sites -->
+<div class="tab-content" id="sitesTab">
+  <div class="card">
+    <h3><i class="fas fa-globe"></i> Site Management</h3>
+    <form class="sites-form" id="createSiteForm">
+      <div class="sites-form-group">
+        <label for="siteName">Site Name</label>
+        <input type="text" id="siteName" name="siteName" placeholder="Enter site name" required>
+        <div class="error-message" id="siteNameError">Please enter a valid site name</div>
+      </div>
+      <button type="submit" id="createSiteBtn">
+        <i class="fas fa-plus-circle"></i> Create Site
+      </button>
+    </form>
+    <div id="createSiteStatus"></div>
+  </div>
+  
+  <div class="card">
+    <div class="sites-list">
+      <h4>Existing Sites</h4>
+      <div id="sitesList">
+        <div class="empty-plugins">
+          <i class="fas fa-globe"></i>
+          <h3>No sites configured</h3>
+          <p>Create your first site using the form above</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
     </div>
     <footer>&copy; 2025 UltimateServer · VoidbornGames</footer>
   </div>
@@ -1712,7 +1876,7 @@ class AuthManager {
 
 // =============================================================================
 // API REQUEST HELPER WITH AUTOMATIC TOKEN REFRESH
-// =============================================================================
+// ============================================================================
 
 // A wrapper around fetch() that handles authentication and automatic token refresh
 async function apiRequest(url, options = {}) {
@@ -1928,7 +2092,7 @@ async function logout() {
     // Always clear local data and redirect to login
     AuthManager.clearAuth();
     showLogin();
-    showToast('Logged Out', 'You have been successfully logged out', 'info');
+    showToast('Logged Out', 'You have been successfully logged out', 'inf');
   }
 }
 
@@ -2111,9 +2275,11 @@ function initializeDashboard() {
     const content = document.getElementById(name);
     if (tab && content) { tab.classList.add('active'); content.classList.add('active'); }
     
-    // Load plugins when the plugins tab is activated
+    // Load specific data when tabs are activated
     if (name === 'pluginsTab') {
       fetchPlugins();
+    } else if (name === 'sitesTab') {
+      fetchSites();
     }
   }
   tabs.forEach(tab => tab.addEventListener('click', () => activateTab(tab.dataset.tab)));
@@ -2150,7 +2316,7 @@ const cpuChart = new Chart(document.getElementById('cpuChart').getContext('2d'),
         beginAtZero: true,
         max: 100,
         grid: { color: 'rgba(255, 255, 255, 0.1)' },
-        ticks: { color: '#94a3b8' }
+        ticks: { coor: '#94a3b8' }
       },
       x: {
         grid: { color: 'rgba(255, 255, 255, 0.1)' },
@@ -2511,6 +2677,167 @@ const memoryChart = new Chart(document.getElementById('memoryChart').getContext(
       showToast('Upload Failed', error.message, 'error');
     }
   });
+
+  // --- SITES FUNCTIONS ---
+  async function fetchSites() {
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/sites`);
+      const data = await response.json();
+      
+      const sitesList = document.getElementById('sitesList');
+      
+      // Handle the new Dictionary<string, int> format
+      if (!data || Object.keys(data).length === 0) {
+        sitesList.innerHTML = `
+          <div class="empty-plugins">
+            <i class="fas fa-globe"></i>
+            <h3>No sites configured</h3>
+            <p>Create your first site using the form above</p>
+          </div>
+        `;
+        return;
+      }
+      
+      sitesList.innerHTML = '';
+      // data is now a dictionary: { "sitename1": 8080, "sitename2": 3000, ... }
+      Object.entries(data).forEach(([name, port]) => {
+        const siteItem = document.createElement('div');
+        siteItem.className = 'site-item';
+        siteItem.innerHTML = `
+          <div class="site-info">
+            <div class="site-name">${name}</div>
+            <div class="site-port">Port: ${port}</div>
+          </div>
+          <div class="site-actions">
+            <a href="http://5.57.34.86:11004/">
+              <button class="site-action-btn sftpOpen">
+                Manage Files
+              </button>
+            </a>
+            <button class="site-action-btn delete" onclick="deleteSite('${name}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        `;
+        sitesList.appendChild(siteItem);
+      });
+    } catch (error) {
+      console.error('Error fetching sites:', error);
+      const sitesList = document.getElementById('sitesList');
+      sitesList.innerHTML = `
+        <div class="plugin-result error show">
+          <i class="fas fa-exclamation-circle"></i> Error loading sites: ${error.message}
+        </div>
+      `;
+    }
+  }
+
+  // Handle create site form submission
+const createSiteForm = document.getElementById('createSiteForm');
+createSiteForm.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const siteName = document.getElementById('siteName').value.trim();
+  const statusDiv = document.getElementById('createSiteStatus');
+  const submitBtn = document.getElementById('createSiteBtn');
+  const originalBtnText = submitBtn.innerHTML;
+  
+  // Reset error messages
+  document.getElementById('siteNameError').style.display = 'none';
+  
+  // Validate site name only
+  let hasError = false;
+  
+  if (!siteName || siteName.length < 1) {
+    document.getElementById('siteNameError').style.display = 'block';
+    hasError = true;
+  }
+  
+  if (hasError) return;
+  
+  // Show loading state
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+  statusDiv.innerHTML = '';
+  
+  try {
+    const response = await apiRequest(`${CONFIG.baseUrl}/api/sites`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        name: siteName,
+        port: 11005  // Send hardcoded port 11005
+      })
+    });
+    
+    // Check if response is actually JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Server returned non-JSON response');
+    }
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      statusDiv.innerHTML = `
+        <div class="plugin-result success show">
+          <i class="fas fa-check-circle"></i> ${result.message || 'Site created successfully!'}
+        </div>
+      `;
+      createSiteForm.reset();
+      showToast('Site Created', result.message || 'Site has been created successfully', 'success');
+      fetchSites(); // Refresh sites list
+    } else {
+      statusDiv.innerHTML = `
+        <div class="plugin-result error show">
+          <i class="fas fa-exclamation-circle"></i> ${result.message || 'Failed to create site'}
+        </div>
+      `;
+      showToast('Creation Failed', result.message || 'Failed to create site', 'error');
+    }
+  } catch (error) {
+    console.error('Error creating site:', error);
+    statusDiv.innerHTML = `
+      <div class="plugin-result error show">
+        <i class="fas fa-exclamation-circle"></i> Error: ${error.message}
+      </div>
+    `;
+    showToast('Creation Failed', error.message, 'error');
+  } finally {
+    // Restore button state
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnText;
+  }
+});
+
+  // Delete site function
+  window.deleteSite = async function(siteName) {
+    if (!confirm(`Are you sure you want to delete ${siteName}?`)) return;
+    
+    try {
+      const response = await apiRequest(`${CONFIG.baseUrl}/api/sites`, {
+        method: 'DELETE',
+        body: JSON.stringify({ name: siteName })
+      });
+      
+      // Check if response is actually JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Server returned non-JSON response');
+      }
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        showToast('Site Deleted', result.message || 'Site has been deleted successfully', 'success');
+        fetchSites(); // Refresh sites list
+      } else {
+        showToast('Deletion Failed', result.message || 'Failed to delete site', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting site:', error);
+      showToast('Deletion Failed', error.message, 'error');
+    }
+  };
 
   // --- INITIAL FETCH AND REFRESH INTERVALS ---
   fetchStats(); fetchSystem(); fetchLogs(); fetchVideos();
