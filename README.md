@@ -482,7 +482,7 @@ dotnet VoiceClient.dll
 </ol>
 
 <h2 id="license">License</h2>
-<p>This project is licensed under License - see the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/LICENSE.txt">LICENSE</a> file for details.</p>
+<p>This project is licensed - see the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/LICENSE.txt">LICENSE</a> file for details.</p>
 
 <h2 id="contributing">Contributing</h2>
 <p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
