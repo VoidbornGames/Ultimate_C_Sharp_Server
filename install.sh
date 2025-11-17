@@ -64,6 +64,5 @@ dotnet Server.dll 11001 11002 11003
 echo "✅ UltimateServer installation complete!"
 echo "----------------------------------------"
 echo "Installed at: $INSTALL_DIR"
-echo "Service:      systemctl status ultimateserver"
 echo "Ports:        11001, 11002, 11003, 11004"
 echo "----------------------------------------"
