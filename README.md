@@ -3,7 +3,7 @@
 <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="http://5.57.34.86:11002/" target="_blank"><strong>Live Dashboard</strong></a></p>
 <p>Currently the live dashboard login credentials has been change because of abuse!</p>
-<img src="https://voidgames.ir/archive/us-screen.png"></img>
+<img src="https://voidgames.ir/archive/usshot.png"></img>
    
 <h2 id="supported-os">Supported OS's</h2>
 <ul>
