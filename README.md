@@ -4,14 +4,12 @@
 <p>Check out the live dashboard here: <a href="http://5.57.34.86:11002/" target="_blank"><strong>Live Dashboard</strong></a></p>
 <p>Currently the live dashboard login credentials has been change because of abuse!</p>
 <img src="https://voidgames.ir/archive/us-screen.png"></img>
-
+   
 <h2 id="supported-os">Supported OS's</h2>
 <ul>
 <li>Ubuntu 22.04</a></li>
 <li>Ubuntu 24.04</a></li>
 </ul>
-
-
 
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
