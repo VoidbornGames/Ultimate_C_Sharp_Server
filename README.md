@@ -1,16 +1,15 @@
 <div class="container">
 <h1 id="ultimateserver">UltimateServer</h1>
-<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
-<p>Check out the live dashboard here: <a href="https://dashboard.voidgames.ir/" target="_blank"><strong>Live Dashboard</strong></a></p>
+<p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
+<p>Check out the live dashboard here: <a href="http://5.57.34.86:11002/" target="_blank"><strong>Live Dashboard</strong></a></p>
 <p>Currently the live dashboard login credentials has been change because of abuse!</p>
-
+<img src="https://voidgames.ir/archive/usshot.png"></img>
+   
 <h2 id="supported-os">Supported OS's</h2>
 <ul>
 <li>Ubuntu 22.04</a></li>
 <li>Ubuntu 24.04</a></li>
 </ul>
-
-
 
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
@@ -154,12 +153,11 @@
 
 <h2 id="installation">Installation</h2>
 <ol>
-<li><strong>Clone the repository</strong>:
-<pre><code class="language-bash">git clone https://github.com/VoidbornGames/Ultimate_C_Sharp_Server.git
-cd Ultimate_C_Sharp_Server</code></pre>
+<li><strong>Run the install script</strong>:
+<pre><code class="language-bash">
+   bash <(curl -s https://raw.githubusercontent.com/VoidbornGames/Ultimate_C_Sharp_Server/main/install.sh)
+</code></pre>
 </li>
-<li><strong>Build the project</strong>:
-<pre><code class="language-bash">dotnet build</code></pre>
 </li>
 </ol>
 
@@ -483,7 +481,7 @@ dotnet VoiceClient.dll
 </ol>
 
 <h2 id="license">License</h2>
-<p>This project is licensed under the MIT License - see the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/LICENSE.txt">LICENSE</a> file for details.</p>
+<p>This project is licensed - see the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/blob/main/LICENSE.txt">LICENSE</a> file for details.</p>
 
 <h2 id="contributing">Contributing</h2>
 <p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
