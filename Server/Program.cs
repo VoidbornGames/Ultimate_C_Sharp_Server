@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Server;
 using Server.Servers;
+using Server.ServerTemplates;
 using Server.Services;
 using UltimateServer.Events;
 using UltimateServer.Models;
@@ -13,13 +14,14 @@ namespace UltimateServer
         private static int tcpPort = 11001;
         private static int httpPort = 11002;
         private static int udpPort = 11003;
+        private static int sftpPort = 11004;
         private static CancellationTokenSource cts = new();
         private const string JwtSecret = "your-super-secret-jwt-key-change-this-in-production-32-chars-min";
 
         static async Task Main(string[] args)
         {
-            // Stating the app with args: dotnet Server.dll 11001 11002 11003
-            //                                        args: arg-1 arg-2 arg-3
+            // Stating the app with args: dotnet Server.dll 11001 11002 11003 11004
+            //                                        args: arg-1 arg-2 arg-3 arg-4
 
             // Gets the TCP port from the arg-1 if exist
             if (args.Length > 0 && int.TryParse(args[0], out int parsedPort))
@@ -30,6 +32,9 @@ namespace UltimateServer
             // Gets the UDP port from the arg-3 if exist
             if (args.Length > 2 && int.TryParse(args[2], out int parsedVoicePort))
                 udpPort = parsedVoicePort;
+            // Gets the SFTP port from the arg-4 if exist
+            if (args.Length > 3 && int.TryParse(args[3], out int parsedSftpPort))
+                sftpPort = parsedSftpPort;
 
             // Create a Service Collection for easy management
             var services = new ServiceCollection();
@@ -40,13 +45,15 @@ namespace UltimateServer
             services.AddSingleton(provider => new EmailService(config: provider.GetRequiredService<ConfigManager>().Config));
             services.AddSingleton(provider => provider.GetRequiredService<ConfigManager>().Config);
             services.AddSingleton<FilePaths>();
-            services.AddSingleton(provider => new ServerSettings { tcpPort = tcpPort, httpPort = httpPort, udpPort = udpPort });
+            services.AddSingleton(provider => new ServerSettings { tcpPort = tcpPort, httpPort = httpPort, udpPort = udpPort, sftpPort = sftpPort });
             services.AddSingleton<CacheService>();
             services.AddSingleton<IEventBus, InMemoryEventBus>();
             services.AddSingleton<Services.EventHandler>();
             services.AddSingleton<PluginManager>();
             services.AddSingleton<SitePress>();
             services.AddSingleton<SftpServer>();
+            services.AddSingleton<DataBox>();
+            services.AddSingleton<HyperServerManager>();
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -65,6 +72,8 @@ namespace UltimateServer
             services.AddScoped<SitePress>();
             services.AddScoped<Nginx>();
             services.AddScoped<SftpServer>();
+            services.AddScoped<DataBox>();
+            services.AddScoped<HyperServerManager>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -89,13 +98,18 @@ namespace UltimateServer
             var udpServer = serviceProvider.GetRequiredService<UdpServer>();
             var sitePress = serviceProvider.GetRequiredService<SitePress>();
             var sftpServer = serviceProvider.GetRequiredService<SftpServer>();
+            var hyperServerManager = serviceProvider.GetRequiredService<HyperServerManager>();
+            var dataBox = serviceProvider.GetRequiredService<DataBox>();
 
+            // DataBox must be the first one to start becuase many of codes might use it for data saving!
+            await dataBox.StartAsync();
             await userService.LoadUsersAsync();
-            httpServer.Start();
-            tcpServer.Start();
-            udpServer.Start();
-            sitePress.Start();
-            sftpServer.Start();
+            await httpServer.Start();
+            await tcpServer.Start();
+            await udpServer.Start();
+            await sitePress.Start();
+            await sftpServer.Start();
+            await hyperServerManager.Start();
 
             // Load plugins AFTER starting the main servers
             pluginManager._serviceProvider = serviceProvider;
@@ -106,10 +120,16 @@ namespace UltimateServer
             {
                 while (!cts.Token.IsCancellationRequested)
                 {
+                    // A 5 minutes delay for save loop
                     await Task.Delay(TimeSpan.FromMinutes(5), cts.Token);
+
                     await userService.SaveUsersAsync();
                     await sitePress.SaveSites();
                     await sftpServer.Save();
+                    await hyperServerManager.Save();
+
+                    // DataBox must be the last one to save becuase many of codes might use it for data saving!
+                    await dataBox.Save();
                 }
             });
 
@@ -146,10 +166,17 @@ namespace UltimateServer
                 await udpServer.StopAsync();
                 await sitePress.StopAsync();
                 await sftpServer.StopAsync();
+                await hyperServerManager.StopAsync();
+
+
+                // DataBox must be the last one to stop becuase many of codes might use it for data saving!
+                await dataBox.StopAsync();
 
                 await Task.Delay(300);
                 Environment.Exit(0);
             };
+
+            // MinecraftPaper paper = new("/var/ServerTest", "1.20.1", [24335], serviceProvider);
 
             // Just an infinite delay so the server wont stop as soon as it starts
             await Task.Delay(Timeout.Infinite);

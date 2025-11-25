@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Crypto.Agreement.Kdf;
 using UltimateServer.Events;
 using UltimateServer.Models;
 
@@ -11,6 +12,7 @@ namespace UltimateServer.Services
         private readonly ValidationService _validationService;
         private readonly CacheService _cacheService;
         private readonly EmailService _emailService;
+        private readonly ServerConfig _serverConfig;
         private readonly Logger _logger;
 
         private readonly object _userLock = new();
@@ -27,7 +29,8 @@ namespace UltimateServer.Services
             ValidationService validationService,
             CacheService cacheService,
             IEventBus eventBus,
-            EmailService emailService)
+            EmailService emailService,
+            ConfigManager configManager)
         {
             _usersFile = filePaths.UsersFile; // <-- Get the path from the object
             _logger = logger;
@@ -36,6 +39,7 @@ namespace UltimateServer.Services
             _cacheService = cacheService;
             _eventBus = eventBus;
             _emailService = emailService;
+            _serverConfig = configManager.Config;
             Users = new List<User>();
         }
 
@@ -264,7 +268,7 @@ namespace UltimateServer.Services
 
             // 3. Create the reset link
             // This should point to the URL of your password reset page
-            var resetLink = $"https://dashboard.voidborn-games.ir/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(user.Email)}";
+            var resetLink = $"https://{_serverConfig.PanelDomain}/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(user.Email)}";
 
             // 4. Update your email template to use the link
             var emailBody = _emailService.verifyCodeEmail
@@ -282,43 +286,35 @@ namespace UltimateServer.Services
 
         public async Task<(bool success, string message)> ConfirmPasswordResetAsync(ChangePasswordRequest request)
         {
-            // 1. Find the user by their email address first.
-            // This is a good practice to ensure the token belongs to the correct user.
-            var user = Users.FirstOrDefault(u => u.PasswordResetToken.Equals(request.Token, StringComparison.OrdinalIgnoreCase));
-
-            // If the user doesn't exist, we can't proceed. Don't reveal this specifically.
+            // 1. Find the user by their email address and token for security.
+            var user = Users.FirstOrDefault(u =>
+            u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase) &&
+            u.PasswordResetToken.Equals(request.Token, StringComparison.OrdinalIgnoreCase)
+            );
+            // If the user doesn't exist or the token doesn't match, fail.
             if (user == null)
             {
-                return (false, "Invalid or expired reset token.");
+                return (false, "Invalid email or reset token.");
             }
-
-            // 2. Now, validate the token against the found user.
-            // The validation method checks if the token matches and is not expired.
+            // 2. Validate the token expiry.
             if (!_authService.ValidatePasswordResetToken(user, request.Token))
             {
                 return (false, "Invalid or expired reset token.");
             }
-
             // 3. Validate the new password's strength.
             if (!_validationService.IsStrongPassword(request.NewPassword))
             {
                 return (false, "New password does not meet security requirements.");
             }
-
             // 4. Hash the new password.
             string newPasswordHash = _authService.HashPassword(request.NewPassword);
-
             // 5. Update the user's password and invalidate the token.
             user.Password = newPasswordHash;
             user.PasswordResetToken = null; // Invalidate the token
             user.PasswordResetTokenExpiry = DateTime.MinValue; // Invalidate the expiry
-
-            // 6. Save the changes to the database.
-            // await _context.SaveChangesAsync(); // Uncomment if using Entity Framework
-
+                                                               // 6. Save the changes to the database.
             await SaveUsersAsync();
             _logger.Log($"✅ Password reset successfully for user: {user.Email}");
-
             return (true, "Your password has been reset successfully. You can now log in.");
         }
 

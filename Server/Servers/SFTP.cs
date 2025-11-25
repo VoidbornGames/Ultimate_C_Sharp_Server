@@ -22,11 +22,12 @@ namespace Server.Services
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
         private AuthenticationService _authenticationService;
+        private ServerConfig _serverConfig;
 
         // --- Simple user-to-path mapping ---
         // Add your users and their desired folder paths here.
         // The path is relative to the main 'Files' directory.
-        public Dictionary<string, string> usersSites = new();
+        public Dictionary<string, string> usersFolders = new();
 
         // --- Simple user-to-password mapping ---
         // In a real app, you should hash these passwords!
@@ -36,13 +37,16 @@ namespace Server.Services
             ServerSettings settings,
             Logger logger,
             IServiceProvider serviceProvider,
-            AuthenticationService authenticationService)
+            AuthenticationService authenticationService,
+            ConfigManager configManager,
+            ServerSettings serverSettings)
         {
-            _port = 11004;
+            _port = serverSettings.sftpPort;
             _logger = logger;
             // No longer need to inject UserService
             _cts = new CancellationTokenSource();
             _authenticationService = authenticationService;
+            _serverConfig = configManager.Config;
         }
 
         internal static readonly string RootFolder = "/var/www/";
@@ -55,7 +59,7 @@ namespace Server.Services
 
             try
             {
-                Directory.CreateDirectory(RootFolder);
+                if(!Directory.Exists(RootFolder)) Directory.CreateDirectory(RootFolder);
                 _httpListener = new HttpListener();
                 string prefix = $"http://*:{_port}/";
                 _httpListener.Prefixes.Add(prefix);
@@ -109,7 +113,7 @@ namespace Server.Services
             var credentials = new sftpData
             {
                 _userCredentials = userCredentials,
-                _usersSites = usersSites
+                _usersSites = usersFolders
             };
 
             var data = JsonConvert.SerializeObject(credentials, Formatting.Indented);
@@ -119,7 +123,7 @@ namespace Server.Services
         {
             var data = JsonConvert.DeserializeObject<sftpData>(await File.ReadAllTextAsync("sftp.json"));
             userCredentials = data._userCredentials;
-            usersSites = data._usersSites;
+            usersFolders = data._usersSites;
         }
 
         struct sftpData
@@ -288,7 +292,7 @@ namespace Server.Services
                     File.Move(fullPath, newPath);
                 }
 
-                _logger.Log($"✅ Item renamed: {Path.GetFileName(fullPath)} to {newName}");
+                if (_serverConfig.DebugMode) _logger.Log($"✅ Item renamed: {Path.GetFileName(fullPath)} to {newName}");
 
                 await WriteJsonResponseAsync(response, new { success = true, message = "Item renamed successfully." });
             }
@@ -358,7 +362,7 @@ namespace Server.Services
                         await File.WriteAllTextAsync(fullPath, string.Empty);
                     }
 
-                    _logger.Log($"✅ {(isDirectory ? "Directory" : "File")} created: {Path.GetFileName(fullPath)}");
+                    if (_serverConfig.DebugMode) _logger.Log($"✅ {(isDirectory ? "Directory" : "File")} created: {Path.GetFileName(fullPath)}");
                 }
                 else
                 {
@@ -373,7 +377,7 @@ namespace Server.Services
                     }
 
                     Directory.CreateDirectory(fullPath);
-                    _logger.Log($"✅ Directory created: {Path.GetFileName(fullPath)}");
+                    if (_serverConfig.DebugMode) _logger.Log($"✅ Directory created: {Path.GetFileName(fullPath)}");
                 }
 
                 await WriteJsonResponseAsync(response, new { success = true, message = "Item created successfully." });
@@ -425,7 +429,7 @@ namespace Server.Services
                 }
 
                 await File.WriteAllTextAsync(fullPath, content);
-                _logger.Log($"✅ File saved by user: {Path.GetFileName(fullPath)}");
+                if(_serverConfig.DebugMode) _logger.Log($"✅ File saved by user: {Path.GetFileName(fullPath)}");
 
                 await WriteJsonResponseAsync(response, new { success = true, message = "File saved successfully." });
             }
@@ -463,17 +467,17 @@ namespace Server.Services
                         Sessions[token] = (DateTime.UtcNow.AddHours(2), username);
 
                         // Get the user's specific path from the dictionary
-                        var userPathSuffix = usersSites.GetValueOrDefault(username, username); // Fallback to username if not in map
+                        var userPathSuffix = usersFolders.GetValueOrDefault(username, username); // Fallback to username if not in map
                         var userRootPath = Path.GetFullPath(Path.Combine(RootFolder, userPathSuffix));
                         Directory.CreateDirectory(userRootPath);
 
-                        _logger.Log($"✅ SFTP User logged in: {username}, folder: {userRootPath}");
+                        if (_serverConfig.DebugMode) _logger.Log($"✅ SFTP User logged in: {username}, folder: {userRootPath}");
 
                         await WriteJsonResponseAsync(response, new { success = true, token, username });
                     }
                     else
                     {
-                        _logger.LogWarning($"[SFTP Login] FAILED for user: '{username}'. Invalid credentials.");
+                        _logger.LogSecurity($"[SFTP Login] FAILED for user: '{username}'. Invalid credentials.");
                         response.StatusCode = 401;
                         await WriteJsonResponseAsync(response, new { success = false, message = "Invalid credentials" });
                     }
@@ -506,7 +510,7 @@ namespace Server.Services
                 var token = GetTokenFromRequest(request);
                 if (Sessions.TryRemove(token, out var sessionData))
                 {
-                    _logger.Log($"✅ SFTP User logged out: {sessionData.username}");
+                    if (_serverConfig.DebugMode) _logger.Log($"✅ SFTP User logged out: {sessionData.username}");
                 }
                 await WriteJsonResponseAsync(response, new { success = true });
             }
@@ -691,7 +695,7 @@ namespace Server.Services
             if (!Sessions.TryGetValue(token, out var sessionData))
                 return null;
 
-            if (!usersSites.TryGetValue(sessionData.username, out var pathSuffix))
+            if (!usersFolders.TryGetValue(sessionData.username, out var pathSuffix))
             {
                 // Fallback to username if not in the map, for safety
                 pathSuffix = sessionData.username;

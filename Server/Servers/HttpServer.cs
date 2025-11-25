@@ -56,7 +56,7 @@ namespace UltimateServer.Services
             _configManager = configManager;
         }
 
-        public void Start()
+        public async Task Start()
         {
             try
             {
@@ -464,15 +464,20 @@ namespace UltimateServer.Services
                 await WriteJsonResponseAsync(response, new { success = false, message = "Only POST allowed" });
                 return;
             }
-
             try
             {
                 using var reader = new StreamReader(request.InputStream);
                 string body = await reader.ReadToEndAsync();
                 var resetRequest = JsonConvert.DeserializeObject<ChangePasswordRequest>(body);
-
                 if (resetRequest != null)
                 {
+                    // Manual validation since no model binding
+                    if (string.IsNullOrEmpty(resetRequest.Email) || string.IsNullOrEmpty(resetRequest.Token) || string.IsNullOrEmpty(resetRequest.NewPassword))
+                    {
+                        response.StatusCode = 400;
+                        await WriteJsonResponseAsync(response, new { success = false, message = "Email, token, and new password are required." });
+                        return;
+                    }
                     var (success, message) = await _userService.ConfirmPasswordResetAsync(resetRequest);
                     await WriteJsonResponseAsync(response, new { success, message });
                 }

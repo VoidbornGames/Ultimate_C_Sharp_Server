@@ -31,65 +31,68 @@ namespace Server.Servers
         /// </summary>
         public async Task Start()
         {
-            try
+            _ = Task.Run(async () =>
             {
-                _udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, _port));
-                _logger.Log($"🎧 Voice UDP server started on port {_port}");
-            }
-            catch (SocketException ex)
-            {
-                _logger.Log($"FATAL ERROR: Could not start server on port {_port}. Is it already in use? Error: {ex.Message}");
-                return; // Exit if the port is unavailable
-            }
-
-            try
-            {
-                while (!_cts.Token.IsCancellationRequested)
+                try
                 {
-                    var result = await _udpClient.ReceiveAsync(_cts.Token);
-                    var sender = result.RemoteEndPoint;
-                    var data = result.Buffer;
+                    _udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, _port));
+                    _logger.Log($"🎧 Voice UDP server started on port {_port}");
+                }
+                catch (SocketException ex)
+                {
+                    _logger.Log($"FATAL ERROR: Could not start server on port {_port}. Is it already in use? Error: {ex.Message}");
+                    return; // Exit if the port is unavailable
+                }
 
-                    // Register new clients
-                    if (_clients.TryAdd(sender, true))
+                try
+                {
+                    while (!_cts.Token.IsCancellationRequested)
                     {
-                        _logger.Log($"ℹ️ New Voice Client Connected! IP: {sender.Address} Port: {sender.Port}");
-                    }
+                        var result = await _udpClient.ReceiveAsync(_cts.Token);
+                        var sender = result.RemoteEndPoint;
+                        var data = result.Buffer;
 
-                    // Forward the voice packet to all other clients
-                    foreach (var clientEndpoint in _clients.Keys)
-                    {
-                        if (!clientEndpoint.Equals(sender))
+                        // Register new clients
+                        if (_clients.TryAdd(sender, true))
                         {
-                            try
+                            _logger.Log($"ℹ️ New Voice Client Connected! IP: {sender.Address} Port: {sender.Port}");
+                        }
+
+                        // Forward the voice packet to all other clients
+                        foreach (var clientEndpoint in _clients.Keys)
+                        {
+                            if (!clientEndpoint.Equals(sender))
                             {
-                                await _udpClient.SendAsync(data, data.Length, clientEndpoint);
-                                // Optional: Log forwarding for debugging
-                                // _logger.Log($"🔊 Forwarding {data.Length} bytes from {sender.Address} to {clientEndpoint.Address}");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.Log($"❌ Failed to send to client {clientEndpoint}. Removing. Error: {ex.Message}");
-                                // Remove unreachable clients
-                                _clients.TryRemove(clientEndpoint, out _);
+                                try
+                                {
+                                    await _udpClient.SendAsync(data, data.Length, clientEndpoint);
+                                    // Optional: Log forwarding for debugging
+                                    // _logger.Log($"🔊 Forwarding {data.Length} bytes from {sender.Address} to {clientEndpoint.Address}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Log($"❌ Failed to send to client {clientEndpoint}. Removing. Error: {ex.Message}");
+                                    // Remove unreachable clients
+                                    _clients.TryRemove(clientEndpoint, out _);
+                                }
                             }
                         }
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                // This is expected when StopAsync is called.
-            }
-            catch (Exception ex)
-            {
-                if (!_cts.IsCancellationRequested)
-                    _logger.Log($"❌ UDP server receive loop error: {ex.Message}");
-            }
-            finally
-            {
-                _logger.Log("🛑 UDP server stopped.");
-            }
+                catch (OperationCanceledException)
+                {
+                    // This is expected when StopAsync is called.
+                }
+                catch (Exception ex)
+                {
+                    if (!_cts.IsCancellationRequested)
+                        _logger.Log($"❌ UDP server receive loop error: {ex.Message}");
+                }
+                finally
+                {
+                    _logger.Log("🛑 UDP server stopped.");
+                }
+            });
         }
 
         /// <summary>

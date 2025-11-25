@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 
 namespace UltimateServer.Models
 {
@@ -33,6 +34,7 @@ namespace UltimateServer.Models
     public class ServerConfig
     {
         public bool DebugMode { get; set; } = false;
+        public string PanelDomain { get; set; } = "example.com";
         public string Ip { get; set; } = "0.0.0.0";
         public int MaxConnections { get; set; } = 50;
         public string DashboardPasswordHash { get; set; } = "12345678";
@@ -46,8 +48,8 @@ namespace UltimateServer.Models
         public bool EnableCompression { get; set; } = true;
         public int CacheExpiryMinutes { get; set; } = 15;
         public int ConnectionPoolSize { get; set; } = 10;
-        public string email_host { get; set; } = "0.0.0.0";
-        public int email_port { get; set; } = 11003;
+        public string email_host { get; set; } = "smtp.gmail.com";
+        public int email_port { get; set; } = 587;
         public string email_username { get; set; } = "your-smtp-email-username";
         public string email_password { get; set; } = "your-smtp-email-password";
         public bool email_useSsl { get; set; } = false;
@@ -110,12 +112,13 @@ namespace UltimateServer.Models
     public class ChangePasswordRequest
     {
         [Required]
+        public string Email { get; set; }
+        [Required]
         public string Token { get; set; }
-
         [Required]
         [StringLength(100, MinimumLength = 8)]
-        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$",
-            ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character")]
+        [RegularExpression(@"^(?=.[a-z])(?=.[A-Z])(?=.\d)(?=.[^\da-zA-Z]).{8,}$",
+        ErrorMessage = "Password must contain at least one uppercase letter, one lowercase letter, one digit and one special character")]
         public string NewPassword { get; set; }
     }
 
@@ -156,5 +159,25 @@ namespace UltimateServer.Models
         public int tcpPort { get; set; }
         public int httpPort { get; set; }
         public int udpPort { get; set; }
+        public int sftpPort { get; set; }
+    }
+
+    public interface IServerTemplate
+    {
+        [Required] public string Name { get; set; }
+        [Required] public string Version { get; set; }
+        [Required] public string ServerFilesDownloadLink { get; set; }
+        [Required] [Length(1000, 60000)] public int[] AllowedPorts { get; set; }
+        [Required] public int MaxRamMB { get; set; }
+        [Required] public string ServerPath { get; set; }
+        [Required] public Process process { get; set; }
+
+
+        Task<string> GetConsoleOutput();
+        Task DownloadServerFiles();
+        Task InstallServerFiles();
+        Task RunServer();
+        Task StopServer();
+        Task UninstallServer();
     }
 }

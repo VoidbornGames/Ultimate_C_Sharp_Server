@@ -80,7 +80,7 @@ namespace Server.Services
 
                 // 7. SFTP setup
                 var pass = SimplePasswordGenerator.Generate();
-                _sftpServer.usersSites.Add(name, name);
+                _sftpServer.usersFolders.Add(name, name);
                 _sftpServer.userCredentials.Add(name, pass);
                 _logger.Log($"SitePress: SFTP user {name} has been created with password: {pass}");
                 await _sftpServer.Save();
@@ -126,8 +126,8 @@ namespace Server.Services
                 // 5. Remove SFTP user
                 if (_sftpServer.userCredentials.TryGetValue(name, out _))
                     _sftpServer.userCredentials.Remove(name);
-                if (_sftpServer.usersSites.TryGetValue(name, out _))
-                    _sftpServer.usersSites.Remove(name);
+                if (_sftpServer.usersFolders.TryGetValue(name, out _))
+                    _sftpServer.usersFolders.Remove(name);
                 await _sftpServer.Save();
 
                 _logger.Log($"✅ Site {name} deleted successfully");

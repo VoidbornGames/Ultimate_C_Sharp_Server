@@ -34,7 +34,7 @@ namespace UltimateServer.Services
             _config = configManager.Config;
         }
 
-        public void Start()
+        public async Task Start()
         {
             _listener = new TcpListener(IPAddress.Parse(_ip), _port);
             _listener.Start();
