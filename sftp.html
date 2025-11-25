@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -69,8 +68,9 @@
         .file-list-container {
             background-color: var(--bg-secondary);
             border-radius: 8px;
-            overflow: hidden;
+            overflow-y: auto; /* enable vertical scroll */
             flex-grow: 1;
+            padding: 0.5rem; /* optional: add padding */
         }
 
         .btn {
@@ -314,6 +314,45 @@
             justify-content: flex-end;
             gap: 1rem;
         }
+        
+        /* --- NEW: Upload Progress Bar Styles --- */
+        .upload-progress-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            min-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+        }
+        .upload-progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .upload-progress-filename {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .upload-progress-percentage {
+            color: var(--text-secondary);
+        }
+        .upload-progress-bar {
+            height: 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .upload-progress-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
     </style>
 </head>
 <body>
@@ -425,6 +464,17 @@
         </div>
     </div>
 
+    <!-- NEW: Upload Progress Bar -->
+    <div id="uploadProgressContainer" class="upload-progress-container hidden">
+        <div class="upload-progress-header">
+            <span id="uploadProgressFilename" class="upload-progress-filename">Uploading file...</span>
+            <span id="uploadProgressPercentage" class="upload-progress-percentage">0%</span>
+        </div>
+        <div class="upload-progress-bar">
+            <div id="uploadProgressFill" class="upload-progress-fill"></div>
+        </div>
+    </div>
+
     <div id="toastContainer" class="toast-container"></div>
 
     <script>
@@ -481,7 +531,7 @@
 
         // --- Editor Functions ---
         function isTextFile(fileName) {
-            const textExtensions = ['.txt', '.json', '.xml', '.js', '.html', '.htm', '.css', '.cs', '.cpp', '.h', '.py', '.php', '.sh', '.md', '.yml', '.yaml', '.log', '.sql', '.gitignore', '.env'];
+            const textExtensions = ['.txt', '.htaccess', '.webmanifest', '.json', '.xml', '.js', '.html', '.htm', '.css', '.cs', '.cpp', '.h', '.py', '.php', '.sh', '.md', '.yml', '.yaml', '.log', '.sql', '.gitignore', '.env'];
             const ext = '.' + fileName.split('.').pop().toLowerCase();
             return textExtensions.includes(ext);
         }
@@ -536,7 +586,7 @@
             document.getElementById('renameModal').classList.add('hidden');
             document.getElementById('newName').value = '';
             state.itemToRename = null;
-       }
+        }
 
         async function confirmRename() {
             if (!state.itemToRename) return;
@@ -610,22 +660,22 @@
         }
 
         function createTableRow(item) {
-    const icon = item.isDirectory ? 'fas fa-folder' : 'fas fa-file';
-    const name = item.isDirectory ? item.name + '/' : item.name;
-    const size = item.isDirectory ? '-' : formatBytes(item.size);
-    // --- MODIFICATION: Added Rename button and restored Delete button for directories ---
-    const actions = item.isDirectory ? `
-        <button class="btn btn-icon" onclick="navigate('${item.name}/')" title="Open"><i class="fas fa-folder-open"></i></button>
-        <button class="btn btn-icon" onclick="openRenameModal('${item.name}', true)" title="Rename"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
-    ` : `
-        <button class="btn btn-icon" onclick="downloadFile('${item.name}')" title="Download"><i class="fas fa-download"></i></button>
-        ${isTextFile(item.name) ? `<button class="btn btn-icon" onclick="editFile('${item.name}')" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
-        <button class="btn btn-icon" onclick="openRenameModal('${item.name}', false)" title="Rename"><i class="fas fa-edit"></i></button>
-        <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
-    `;
-    return `<tr><td><div class="file-name"><i class="${icon}"></i><span>${name}</span></div></td><td>${size}</td><td>${new Date(item.lastModified).toLocaleString()}</td><td class="actions">${actions}</td></tr>`;
-}
+            const icon = item.isDirectory ? 'fas fa-folder' : 'fas fa-file';
+            const name = item.isDirectory ? item.name + '/' : item.name;
+            const size = item.isDirectory ? '-' : formatBytes(item.size);
+            // --- MODIFICATION: Added Rename button and restored Delete button for directories ---
+            const actions = item.isDirectory ? `
+                <button class="btn btn-icon" onclick="navigate('${item.name}/')" title="Open"><i class="fas fa-folder-open"></i></button>
+                <button class="btn btn-icon" onclick="openRenameModal('${item.name}', true)" title="Rename"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
+            ` : `
+                <button class="btn btn-icon" onclick="downloadFile('${item.name}')" title="Download"><i class="fas fa-download"></i></button>
+                ${isTextFile(item.name) ? `<button class="btn btn-icon" onclick="editFile('${item.name}')" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
+                <button class="btn btn-icon" onclick="openRenameModal('${item.name}', false)" title="Rename"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
+            `;
+            return `<tr><td><div class="file-name"><i class="${icon}"></i><span>${name}</span></div></td><td>${size}</td><td>${new Date(item.lastModified).toLocaleString()}</td><td class="actions">${actions}</td></tr>`;
+        }
 
         function createGridCard(item) {
             const icon = item.isDirectory ? 'fas fa-folder' : 'fas fa-file';
@@ -638,15 +688,66 @@
         function navigate(path) { state.path = state.path + path; loadFiles(); }
         function up() { if (state.path === '/') return; const parts = state.path.split('/').filter(p => p); parts.pop(); state.path = '/' + parts.join('/') + (parts.length ? '/' : ''); loadFiles(); }
 
-        async function uploadFile() {
+        // --- MODIFIED: Upload File with Progress Bar ---
+        function uploadFile() {
             const fileInput = document.getElementById('fileInput');
-            if (!fileInput.files.length) { showToast('Please select a file to upload.', 'warning'); return; }
-            const formData = new FormData(); formData.append('file', fileInput.files[0]);
-            try {
-                await api(`/files/upload?path=${encodeURIComponent(state.path)}`, 'POST', formData);
-                showToast('File uploaded successfully!', 'success');
-                fileInput.value = ''; loadFiles();
-            } catch (error) { showToast(`Upload failed: ${error.message}`, 'error'); }
+            if (!fileInput.files.length) { 
+                showToast('Please select a file to upload.', 'warning'); 
+                return; 
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Show progress bar
+            const progressContainer = document.getElementById('uploadProgressContainer');
+            const progressFill = document.getElementById('uploadProgressFill');
+            const progressFilename = document.getElementById('uploadProgressFilename');
+            const progressPercentage = document.getElementById('uploadProgressPercentage');
+            
+            progressContainer.classList.remove('hidden');
+            progressFilename.textContent = `Uploading ${file.name}...`;
+            progressFill.style.width = '0%';
+            progressPercentage.textContent = '0%';
+            
+            // Create XMLHttpRequest for upload progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Update progress bar
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percentComplete + '%';
+                    progressPercentage.textContent = Math.round(percentComplete) + '%';
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    showToast('File uploaded successfully!', 'success');
+                    fileInput.value = '';
+                    loadFiles();
+                } else {
+                    showToast(`Upload failed: ${xhr.statusText}`, 'error');
+                }
+                // Hide progress bar after a short delay
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 1000);
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', function() {
+                showToast('Upload failed: Network error', 'error');
+                progressContainer.classList.add('hidden');
+            });
+            
+            // Set up request
+            xhr.open('POST', `/api/files/upload?path=${encodeURIComponent(state.path)}`);
+            xhr.setRequestHeader('Authorization', `Bearer ${state.token}`);
+            xhr.send(formData);
         }
 
         async function createFolder() {
@@ -668,23 +769,23 @@
         }
 
         async function downloadFile(fileName) {
-    try {
-        const response = await api(`/files/download?path=${encodeURIComponent(state.path + fileName)}`);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a'); 
-        a.style.display = 'none'; 
-        a.href = url; 
-        a.download = fileName;
-        document.body.appendChild(a); // Fixed: changed from appedChild to appendChild
-        a.click(); 
-        window.URL.revokeObjectURL(url); 
-        document.body.removeChild(a);
-        showToast(`Downloading ${fileName}...`, 'success');
-    } catch (error) { 
-        showToast(`Failed to download file: ${error.message}`, 'error'); 
-    }
-}
+            try {
+                const response = await api(`/files/download?path=${encodeURIComponent(state.path + fileName)}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a'); 
+                a.style.display = 'none'; 
+                a.href = url; 
+                a.download = fileName;
+                document.body.appendChild(a); // Fixed: changed from appedChild to appendChild
+                a.click(); 
+                window.URL.revokeObjectURL(url); 
+                document.body.removeChild(a);
+                showToast(`Downloading ${fileName}...`, 'success');
+            } catch (error) { 
+                showToast(`Failed to download file: ${error.message}`, 'error'); 
+            }
+        }
 
         function toggleView() {
             state.viewMode = state.viewMode === 'list' ? 'grid' : 'list';
