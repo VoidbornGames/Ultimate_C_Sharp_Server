@@ -134,6 +134,7 @@ namespace UltimateServer.Services
                 response.Close();
                 return;
             }
+            HttpContextHolder.CurrentResponse = response;
 
             try
             {
@@ -151,17 +152,17 @@ namespace UltimateServer.Services
                         {
                             try
                             {
-                                // The plugin handler is now responsible for the full response
+                                // The plugin handler can now get the response from HttpContextHolder
                                 await handler(request);
-                                requestHandled = true; // Mark as handled by a plugin
-                                break; // Stop checking other plugins
+                                requestHandled = true;
+                                break;
                             }
                             catch (Exception ex)
                             {
                                 _logger.LogError($"Plugin route handler error: {ex.Message}");
-                                response.StatusCode = 500;
-                                await WriteJsonResponseAsync(response, new { success = false, message = "Plugin error." });
-                                requestHandled = true; // Also considered handled
+                                // IMPORTANT: Let the plugin handle its own error response.
+                                // Just log it and mark as handled so the server doesn't also try to respond.
+                                requestHandled = true;
                                 break;
                             }
                         }
@@ -313,10 +314,12 @@ namespace UltimateServer.Services
             }
             finally
             {
-                // =================================================================
-                // FIX: Only close the response if the SERVER handled it.
-                // If a plugin handled it, it's the plugin's responsibility.
-                // =================================================================
+                // IMPORTANT: Clear the context to prevent memory leaks and ensure
+                // a response from one request doesn't leak into another.
+                HttpContextHolder.CurrentResponse = null;
+
+                // Only close the response if the SERVER handled it.
+                // If a plugin handled it, the plugin is responsible for closing it.
                 if (!requestHandled)
                 {
                     response.Close();
@@ -1076,6 +1079,22 @@ namespace UltimateServer.Services
             response.ContentType = "text/plain";
             response.ContentLength64 = buffer.Length;
             await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+        }
+    }
+
+    /// <summary>
+    /// Holds the HttpListenerResponse for the current asynchronous request context.
+    /// This allows plugins to access the response even when they only receive the request.
+    /// </summary>
+    public static class HttpContextHolder
+    {
+        // AsyncLocal ensures the value is correct even across multiple concurrent async requests.
+        private static readonly AsyncLocal<HttpListenerResponse> _currentResponse = new();
+
+        public static HttpListenerResponse CurrentResponse
+        {
+            get => _currentResponse.Value;
+            set => _currentResponse.Value = value;
         }
     }
 }
