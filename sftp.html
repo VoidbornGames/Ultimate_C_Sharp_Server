@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SFTP File Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- All your existing CSS remains the same --- */
+        :root {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #252526;
+            --border-color: #333;
+            --text-primary: #e0e0e0;
+            --text-secondary: #9e9e9e;
+            --accent-color: #007bff;
+            --accent-hover: #0056b3;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-container { display: flex; flex-direction: column; height: 100%; }
+
+        header {
+            background-color: var(--bg-secondary);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        header h1 { font-size: 1.5rem; font-weight: 600; }
+
+        main {
+            flex-grow: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            background-color: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .file-list-container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            overflow-y: auto; /* enable vertical scroll */
+            flex-grow: 1;
+            padding: 0.5rem; /* optional: add padding */
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn:hover { background-color: var(--accent-hover); }
+
+        .btn-icon {
+            background: transparent;
+            color: var(--text-secondary);
+            padding: 0.6rem;
+        }
+
+        .btn-icon:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+
+        .btn-danger { background-color: var(--danger-color); }
+        .btn-danger:hover { background-color: #c82333; }
+        .btn-success { background-color: var(--success-color); }
+        .btn-success:hover { background-color: #218838; }
+
+        .path-display {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            flex-grow: 1;
+        }
+
+        .input-group { display: flex; align-items: center; gap: 0.5rem; }
+
+        input[type="text"], input[type="password"], input[type="file"] {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        input[type="file"] { padding: 0.4rem; }
+
+        .file-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .file-table th, .file-table td {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .file-table th {
+            background-color: var(--bg-tertiary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .file-table tbody tr:hover { background-color: var(--bg-tertiary); }
+        .file-table .file-name { display: flex; align-items: center; gap: 0.75rem; }
+        .file-table .file-name i { color: var(--text-secondary); }
+        .file-table .actions { display: flex; gap: 0.5rem; }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+        .file-card {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .file-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-color);
+        }
+        .file-card i {
+            font-size: 2.5rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .file-card .name { font-size: 0.9rem; word-break: break-all; }
+        .file-card .size { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .login-form {
+            background-color: var(--bg-secondary);
+            padding: 2rem 2.5rem;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .login-form h2 { margin-bottom: 1.5rem; text-align: center; }
+        .login-form .input-group { margin-bottom: 1rem; width: 100%; }
+        .login-form input { width: 100%; }
+        .login-form .btn { width: 100%; justify-content: center; margin-top: 1rem; }
+
+        .toast-container {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 2000;
+        }
+        .toast {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 250px;
+            animation: slideIn 0.3s ease-out;
+        }
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--danger-color); }
+        .toast.warning { border-left: 4px solid var(--warning-color); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        
+        .hidden { display: none !important; }
+        .loader {
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--accent-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- Editor Modal Styles --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .editor-modal-content {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 900px;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .editor-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .editor-body {
+            flex-grow: 1;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-textarea {
+            flex-grow: 1;
+            width: 100%;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            resize: none;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+        }
+        .editor-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+        
+        /* --- NEW: Rename Modal Styles --- */
+        .rename-modal-content {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .rename-modal-header {
+            margin-bottom: 1.5rem;
+        }
+        .rename-modal-body {
+            margin-bottom: 1.5rem;
+        }
+        .rename-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+        
+        /* --- NEW: Upload Progress Bar Styles --- */
+        .upload-progress-container {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            min-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+        }
+        .upload-progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .upload-progress-filename {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .upload-progress-percentage {
+            color: var(--text-secondary);
+        }
+        .upload-progress-bar {
+            height: 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .upload-progress-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app" class="app-container">
+        <div id="loginOverlay" class="login-overlay">
+            <form class="login-form" onsubmit="login(event)">
+                <h2><i class="fas fa-lock"></i> SFTP Login</h2>
+                <div class="input-group">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" placeholder="Username" required>
+                </div>
+                <div class="input-group">
+                    <i class="fas fa-key"></i>
+                    <input type="password" id="password" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </form>
+        </div>
+
+        <header>
+            <h1><i class="fas fa-folder-open"></i> File Manager</h1>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span id="loggedInUser" style="color: var(--text-secondary);"></span>
+                <button class="btn btn-icon" onclick="toggleView()" title="Toggle View">
+                    <i id="viewToggleIcon" class="fas fa-th-list"></i>
+                </button>
+                <button class="btn btn-icon" onclick="logout()" title="Logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="toolbar">
+                <button class="btn btn-icon" onclick="up()" title="Go Up">
+                    <i class="fas fa-level-up-alt"></i>
+                </button>
+                <input type="text" id="currentPath" class="path-display" readonly title="Current Path">
+                <div class="input-group">
+                    <input type="text" id="newFolderName" placeholder="New folder name...">
+                    <button class="btn" onclick="createFolder()" title="Create Folder">
+                        <i class="fas fa-folder-plus"></i>
+                    </button>
+                </div>
+                <!-- NEW: File Creation -->
+                <div class="input-group">
+                    <input type="text" id="newFileName" placeholder="New file name...">
+                    <button class="btn" onclick="createFile()" title="Create File">
+                        <i class="fas fa-file-plus"></i>
+                    </button>
+                </div>
+                <div class="input-group">
+                    <input type="file" id="fileInput">
+                    <button class="btn btn-success" onclick="uploadFile()" title="Upload File">
+                        <i class="fas fa-upload"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="file-list-container">
+                <div id="fileListContent">
+                    <!-- File list will be rendered here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- File Editor Modal -->
+    <div id="editorModal" class="modal-overlay hidden">
+        <div class="editor-modal-content">
+            <div class="editor-header">
+                <h2 id="editorTitle">Edit File</h2>
+                <button class="btn btn-icon" onclick="closeEditor()" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="editor-body">
+                <textarea id="editorTextarea" class="editor-textarea" placeholder="File content will appear here..."></textarea>
+            </div>
+            <div class="editor-footer">
+                <button class="btn" onclick="closeEditor()">Cancel</button>
+                <button class="btn btn-success" onclick="saveFile()">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Rename Modal -->
+    <div id="renameModal" class="modal-overlay hidden">
+        <div class="rename-modal-content">
+            <div class="rename-modal-header">
+                <h2><i class="fas fa-edit"></i> Rename Item</h2>
+            </div>
+            <div class="rename-modal-body">
+                <div class="input-group">
+                    <input type="text" id="newName" placeholder="Enter new name...">
+                </div>
+            </div>
+            <div class="rename-modal-footer">
+                <button class="btn" onclick="closeRenameModal()">Cancel</button>
+                <button class="btn btn-success" onclick="confirmRename()">
+                    <i class="fas fa-check"></i> Rename
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW: Upload Progress Bar -->
+    <div id="uploadProgressContainer" class="upload-progress-container hidden">
+        <div class="upload-progress-header">
+            <span id="uploadProgressFilename" class="upload-progress-filename">Uploading file...</span>
+            <span id="uploadProgressPercentage" class="upload-progress-percentage">0%</span>
+        </div>
+        <div class="upload-progress-bar">
+            <div id="uploadProgressFill" class="upload-progress-fill"></div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+        const state = {
+            path: '/',
+            token: '',
+            viewMode: 'list',
+            currentEditingFile: null, // Store the path of the file being edited
+            itemToRename: null // Store the path of the item to rename
+        };
+
+        async function api(path, method = 'GET', body = null) {
+            const options = { method, headers: { 'Authorization': `Bearer ${state.token}` } };
+            if (body && !(body instanceof FormData)) {
+                options.headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(body);
+            } else { options.body = body; }
+
+            const response = await fetch('/api' + path, options);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Request failed with status ${response.status}`);
+            }
+            if (method === 'GET' && path.startsWith('/files/download')) return response;
+            return response.json();
+        }
+
+        async function login(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const data = await api('/login', 'POST', { Username: username, Password: password });
+                state.token = data.token;
+                state.username = data.username;
+                document.getElementById('loggedInUser').textContent = `Logged in as: ${state.username}`;
+                document.getElementById('loginOverlay').classList.add('hidden');
+                showToast(`Welcome, ${state.username}!`, 'success');
+                loadFiles();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        function logout() {
+            api('/logout', 'POST').finally(() => {
+                state.token = ''; state.username = ''; state.path = '/';
+                document.getElementById('loggedInUser').textContent = '';
+                document.getElementById('loginOverlay').classList.remove('hidden');
+                showToast('Logged out.', 'success');
+            });
+        }
+
+        // --- Editor Functions ---
+        function isTextFile(fileName) {
+            const textExtensions = ['.txt', '.htaccess', '.webmanifest', '.json', '.xml', '.js', '.html', '.htm', '.css', '.cs', '.cpp', '.h', '.py', '.php', '.sh', '.md', '.yml', '.yaml', '.log', '.sql', '.gitignore', '.env'];
+            const ext = '.' + fileName.split('.').pop().toLowerCase();
+            return textExtensions.includes(ext);
+        }
+
+        async function editFile(fileName) {
+            const fullPath = state.path + fileName;
+            state.currentEditingFile = fullPath;
+            document.getElementById('editorTitle').textContent = `Editing: ${fileName}`;
+            document.getElementById('editorTextarea').value = 'Loading...';
+            document.getElementById('editorModal').classList.remove('hidden');
+
+            try {
+                const response = await api(`/files/download?path=${encodeURIComponent(fullPath)}`);
+                const content = await response.text();
+                document.getElementById('editorTextarea').value = content;
+            } catch (error) {
+                showToast(`Failed to load file: ${error.message}`, 'error');
+                closeEditor();
+            }
+        }
+
+        async function saveFile() {
+            if (!state.currentEditingFile) return;
+
+            const content = document.getElementById('editorTextarea').value;
+            try {
+                await api('/files/save', 'POST', { path: state.currentEditingFile, content });
+                showToast('File saved successfully!', 'success');
+                closeEditor();
+            } catch (error) {
+                showToast(`Failed to save file: ${error.message}`, 'error');
+            }
+        }
+
+        function closeEditor() {
+            document.getElementById('editorModal').classList.add('hidden');
+            document.getElementById('editorTextarea').value = '';
+            state.currentEditingFile = null;
+        }
+
+        // --- NEW: Rename Functions ---
+        function openRenameModal(fileName, isDirectory) {
+            state.itemToRename = {
+                path: state.path + fileName,
+                isDirectory: isDirectory
+            };
+            document.getElementById('newName').value = fileName;
+            document.getElementById('renameModal').classList.remove('hidden');
+        }
+
+        function closeRenameModal() {
+            document.getElementById('renameModal').classList.add('hidden');
+            document.getElementById('newName').value = '';
+            state.itemToRename = null;
+        }
+
+        async function confirmRename() {
+            if (!state.itemToRename) return;
+
+            const newName = document.getElementById('newName').value.trim();
+            if (!newName) {
+                showToast('Please enter a new name.', 'warning');
+                return;
+            }
+
+            try {
+                await api('/files/rename', 'POST', {
+                    path: state.itemToRename.path,
+                    newName: newName,
+                    isDirectory: state.itemToRename.isDirectory
+                });
+                showToast('Item renamed successfully!', 'success');
+                closeRenameModal();
+                loadFiles();
+            } catch (error) {
+                showToast(`Failed to rename item: ${error.message}`, 'error');
+            }
+        }
+
+        // --- NEW: File Creation Function ---
+        async function createFile() {
+            const fileName = document.getElementById('newFileName').value.trim();
+            if (!fileName) {
+                showToast('Please enter a file name.', 'warning');
+                return;
+            }
+
+            try {
+                await api('/files/create', 'POST', {
+                    path: state.path + fileName,
+                    isDirectory: false
+                });
+                showToast('File created successfully!', 'success');
+                document.getElementById('newFileName').value = '';
+                loadFiles();
+            } catch (error) {
+                showToast(`Failed to create file: ${error.message}`, 'error');
+            }
+        }
+
+        // --- Existing File Management Functions ---
+        async function loadFiles() {
+            const fileListContent = document.getElementById('fileListContent');
+            fileListContent.innerHTML = '<div class="loader"></div>';
+            try {
+                const response = await api(`/files/list?path=${encodeURIComponent(state.path)}`);
+                renderFileList(response.items || []);
+                document.getElementById('currentPath').value = state.path;
+            } catch (error) {
+                showToast(`Failed to load files: ${error.message}`, 'error');
+                fileListContent.innerHTML = '<p style="text-align:center; padding: 2rem;">Could not load files.</p>';
+                if (error.message.includes('401')) logout();
+            }
+        }
+
+        function renderFileList(items) {
+            const fileListContent = document.getElementById('fileListContent');
+            if (items.length === 0) { fileListContent.innerHTML = '<p style="text-align:center; padding: 2rem;">This folder is empty.</p>'; return; }
+            if (state.viewMode === 'list') {
+                const table = `<table class="file-table"><thead><tr><th>Name</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody>${items.map(item => createTableRow(item)).join('')}</tbody></table>`;
+                fileListContent.innerHTML = table;
+            } else {
+                const grid = `<div class="file-grid">${items.map(item => createGridCard(item)).join('')}</div>`;
+                fileListContent.innerHTML = grid;
+            }
+        }
+
+        function createTableRow(item) {
+            const icon = item.isDirectory ? 'fas fa-folder' : 'fas fa-file';
+            const name = item.isDirectory ? item.name + '/' : item.name;
+            const size = item.isDirectory ? '-' : formatBytes(item.size);
+            // --- MODIFICATION: Added Rename button and restored Delete button for directories ---
+            const actions = item.isDirectory ? `
+                <button class="btn btn-icon" onclick="navigate('${item.name}/')" title="Open"><i class="fas fa-folder-open"></i></button>
+                <button class="btn btn-icon" onclick="openRenameModal('${item.name}', true)" title="Rename"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
+            ` : `
+                <button class="btn btn-icon" onclick="downloadFile('${item.name}')" title="Download"><i class="fas fa-download"></i></button>
+                ${isTextFile(item.name) ? `<button class="btn btn-icon" onclick="editFile('${item.name}')" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
+                <button class="btn btn-icon" onclick="openRenameModal('${item.name}', false)" title="Rename"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon btn-danger" onclick="deleteItem('${item.name}', ${item.isDirectory})" title="Delete"><i class="fas fa-trash"></i></button>
+            `;
+            return `<tr><td><div class="file-name"><i class="${icon}"></i><span>${name}</span></div></td><td>${size}</td><td>${new Date(item.lastModified).toLocaleString()}</td><td class="actions">${actions}</td></tr>`;
+        }
+
+        function createGridCard(item) {
+            const icon = item.isDirectory ? 'fas fa-folder' : 'fas fa-file';
+            const name = item.isDirectory ? item.name + '/' : item.name;
+            const size = item.isDirectory ? '' : formatBytes(item.size);
+            const clickAction = item.isDirectory ? `navigate('${item.name}/')` : `downloadFile('${item.name}')`;
+            return `<div class="file-card" onclick="${clickAction}"><i class="${icon}"></i><div class="name">${name}</div><div class="size">${size}</div></div>`;
+        }
+
+        function navigate(path) { state.path = state.path + path; loadFiles(); }
+        function up() { if (state.path === '/') return; const parts = state.path.split('/').filter(p => p); parts.pop(); state.path = '/' + parts.join('/') + (parts.length ? '/' : ''); loadFiles(); }
+
+        // --- MODIFIED: Upload File with Progress Bar ---
+        function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) { 
+                showToast('Please select a file to upload.', 'warning'); 
+                return; 
+            }
+            
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            // Show progress bar
+            const progressContainer = document.getElementById('uploadProgressContainer');
+            const progressFill = document.getElementById('uploadProgressFill');
+            const progressFilename = document.getElementById('uploadProgressFilename');
+            const progressPercentage = document.getElementById('uploadProgressPercentage');
+            
+            progressContainer.classList.remove('hidden');
+            progressFilename.textContent = `Uploading ${file.name}...`;
+            progressFill.style.width = '0%';
+            progressPercentage.textContent = '0%';
+            
+            // Create XMLHttpRequest for upload progress tracking
+            const xhr = new XMLHttpRequest();
+            
+            // Update progress bar
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percentComplete + '%';
+                    progressPercentage.textContent = Math.round(percentComplete) + '%';
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    showToast('File uploaded successfully!', 'success');
+                    fileInput.value = '';
+                    loadFiles();
+                } else {
+                    showToast(`Upload failed: ${xhr.statusText}`, 'error');
+                }
+                // Hide progress bar after a short delay
+                setTimeout(() => {
+                    progressContainer.classList.add('hidden');
+                }, 1000);
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', function() {
+                showToast('Upload failed: Network error', 'error');
+                progressContainer.classList.add('hidden');
+            });
+            
+            // Set up request
+            xhr.open('POST', `/api/files/upload?path=${encodeURIComponent(state.path)}`);
+            xhr.setRequestHeader('Authorization', `Bearer ${state.token}`);
+            xhr.send(formData);
+        }
+
+        async function createFolder() {
+            const name = document.getElementById('newFolderName').value.trim();
+            if (!name) { showToast('Please enter a folder name.', 'warning'); return; }
+            try {
+                await api(`/files/create?path=${encodeURIComponent(state.path + name)}`, 'POST');
+                showToast('Folder created successfully!', 'success');
+                document.getElementById('newFolderName').value = ''; loadFiles();
+            } catch (error) { showToast(`Failed to create folder: ${error.message}`, 'error'); }
+        }
+
+        async function deleteItem(name, isDir) {
+            if (!confirm(`Are you sure you want to permanently delete "${name}"?`)) return;
+            try {
+                await api(`/files/delete?path=${encodeURIComponent(state.path + name)}&isDir=${isDir}`, 'DELETE');
+                showToast('Item deleted successfully.', 'success'); loadFiles();
+            } catch (error) { showToast(`Failed to delete: ${error.message}`, 'error'); }
+        }
+
+        async function downloadFile(fileName) {
+            try {
+                const response = await api(`/files/download?path=${encodeURIComponent(state.path + fileName)}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a'); 
+                a.style.display = 'none'; 
+                a.href = url; 
+                a.download = fileName;
+                document.body.appendChild(a); // Fixed: changed from appedChild to appendChild
+                a.click(); 
+                window.URL.revokeObjectURL(url); 
+                document.body.removeChild(a);
+                showToast(`Downloading ${fileName}...`, 'success');
+            } catch (error) { 
+                showToast(`Failed to download file: ${error.message}`, 'error'); 
+            }
+        }
+
+        function toggleView() {
+            state.viewMode = state.viewMode === 'list' ? 'grid' : 'list';
+            const icon = document.getElementById('viewToggleIcon');
+            icon.className = state.viewMode === 'list' ? 'fas fa-th-list' : 'fas fa-th';
+            loadFiles();
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'exclamation-triangle';
+            toast.innerHTML = `<i class="fas fa-${icon}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024; const sizes = ['B', 'K', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
