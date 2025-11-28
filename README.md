@@ -1,4 +1,5 @@
 <div class="container">
+<img src="https://voidgames.ir/archive/Ultimate%20Server%20Logo.png"></img>
 <h1 id="ultimateserver">UltimateServer</h1>
 <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
 <p>Check out the live dashboard here: <a href="https://dashboard.voidgames.ir" target="_blank"><strong>Live Dashboard</strong></a></p>
