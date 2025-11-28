@@ -1,0 +1,26 @@
+Copyright (c) 2025 Alireza Janaki
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use the Software for personal, non-commercial purposes only.
+
+You may:
+
+- Use the Software on your personal devices.
+- Study, modify, and experiment with the Software for learning or private projects.
+- Share the Software with friends or educational communities for personal use.
+
+You may NOT:
+
+- Use the Software in any production, commercial, or revenue-generating environment without prior written permission from the copyright holder.
+- Sell, license, or redistribute the Software for commercial purposes without explicit consent.
+
+To use this Software in a production, commercial, or business environment, you must:
+
+1. Contact the copyright holder at voidborn.games.official@gmail.com
+2. Obtain a commercial license agreement, which may include payment.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+By using this Software, you agree to the terms above.
+
+Alireza Janaki  
+voidborn.games.official@gmail.com | voidgames.ir
