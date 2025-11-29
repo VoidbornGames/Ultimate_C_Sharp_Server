@@ -14,6 +14,7 @@
 
 <h2 id="table-of-contents">Table of Contents</h2>
 <ul>
+<li><a href="https://github.com/VoidbornGames/UltimateServer/wiki">Wiki</a></li>
 <li><a href="#features">Features</a></li>
 <li><a href="#requirements">Requirements</a></li>
 <li><a href="#installation">Installation</a></li>
