@@ -37,7 +37,7 @@
     <h2 id="development-setup">Development Setup</h2>
     <p>To set up a development environment:</p>
     <ol>
-        <li>Follow the <a href="Installation.html">Installation Guide</a> to get the server running.</li>
+        <li>Follow the <a href="https://github.com/VoidbornGames/UltimateServer/wiki/Installation">Installation Guide</a> to get the server running.</li>
         <li>Clone your forked repository locally.</li>
         <li>Open the project in your preferred C# IDE (Visual Studio, VS Code, Rider).</li>
         <li>Ensure you have the .NET 8.0 SDK installed.</li>
