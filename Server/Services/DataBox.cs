@@ -1,6 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using UltimateServer.Services;
-using System.IO;
 
 namespace Server.Services
 {
@@ -182,5 +182,47 @@ namespace Server.Services
                 return false;
             }
         }
+
+        // Generic method to load data with a defualt value if it failed or dont exist
+        public async Task<T> FirstOrDefault<T>(string Key, T Default)
+        {
+            if (string.IsNullOrWhiteSpace(Key))
+            {
+                _logger.LogError("Key cannot be null or empty");
+                return default(T);
+            }
+
+            try
+            {
+                if (Data.TryGetValue(Key, out object value))
+                {
+                    // If the value is already of the requested type, return it directly
+                    if (value is T directValue)
+                    {
+                        return directValue;
+                    }
+                    else
+                    {
+                        // Otherwise, try to convert it
+                        string json = JsonConvert.SerializeObject(value);
+                        T jsonData = JsonConvert.DeserializeObject<T>(json);
+
+                        if (jsonData is T directJsonValue)
+                            return directJsonValue;
+                        else
+                            return Default;
+                    }
+                }
+                else
+                    return Default;
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Failed to load data for key '{Key}': {e.Message}");
+                return default(T);
+            }
+        }
     }
 }
+
+// Hehe

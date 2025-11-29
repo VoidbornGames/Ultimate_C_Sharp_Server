@@ -54,6 +54,7 @@ namespace UltimateServer
             services.AddSingleton<SftpServer>();
             services.AddSingleton<DataBox>();
             services.AddSingleton<HyperServerManager>();
+            services.AddSingleton<MiniDB>();
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -74,6 +75,7 @@ namespace UltimateServer
             services.AddScoped<SftpServer>();
             services.AddScoped<DataBox>();
             services.AddScoped<HyperServerManager>();
+            services.AddScoped<MiniDB>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -100,8 +102,10 @@ namespace UltimateServer
             var sftpServer = serviceProvider.GetRequiredService<SftpServer>();
             var hyperServerManager = serviceProvider.GetRequiredService<HyperServerManager>();
             var dataBox = serviceProvider.GetRequiredService<DataBox>();
+            var miniDB = serviceProvider.GetRequiredService<MiniDB>();
 
             // DataBox must be the first one to start becuase many of codes might use it for data saving!
+            await miniDB.Start();
             await dataBox.StartAsync();
             await userService.LoadUsersAsync();
             await httpServer.Start();
@@ -154,8 +158,8 @@ namespace UltimateServer
                 e.Cancel = true;
 
                 // Run our own shoutdown
-                logger.Log("🛑 Shutdown requested...");
                 cts.Cancel();
+                logger.Log("🛑 Shutdown requested...");
 
                 logger.Log("💾 Saving final data...");
                 await userService.SaveUsersAsync();
@@ -171,15 +175,25 @@ namespace UltimateServer
 
                 // DataBox must be the last one to stop becuase many of codes might use it for data saving!
                 await dataBox.StopAsync();
+                await miniDB.Stop();
 
+                // A 300ms delay to be sure everything has been saved.
                 await Task.Delay(300);
                 Environment.Exit(0);
             };
 
-            // MinecraftPaper paper = new("/var/ServerTest", "1.20.1", [24335], serviceProvider);
+            // Test Section
+            //await miniDB.InsertDataAsync("Test-Key", new User() { Email = "hgjhg@gm.com"} );
+
+            //var db = await miniDB.GetDataAsync<User>("Test-Key");
+            //logger.Log($@"Test: {db.Email}");
 
             // Just an infinite delay so the server wont stop as soon as it starts
             await Task.Delay(Timeout.Infinite);
+
+
+            // 1 => TODO: Create a Database system named MiniDB like DataBox but with LightSQL instead of json.
+            // 2 => TODO: Finish the HyperServerManager panel and add it to the main panel.
         }
     }
 }
