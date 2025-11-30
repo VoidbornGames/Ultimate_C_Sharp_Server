@@ -40,11 +40,12 @@
             </ul>
         </nav>
 
-<h2 id="supported-os">Supported OS</h2>
-        <ul>
-            <li>Ubuntu 22.04</li>
-            <li>Ubuntu 24.04</li>
-        </ul>
+### Supported OS
+|  Version  |     Supported      |
+| --------- | ------------------ |
+|   24.04   | :white_check_mark: |
+|   22.04   | :white_check_mark: |
+| < 22.04   | :x:                |
 
 <h2 id="features">Features</h2>
         <div class="feature-list">
