@@ -160,6 +160,7 @@
         <ul>
             <li>Ports open for connections (default: <code>11001</code> for server, <code>11002</code> for web dashboard)</li>
             <li>Port open for UDP connections (default: <code>11003</code> for voice chat)</li>
+            <li>Port open for SFTP connections (default: <code>11004</code> for SFTP)</li>
         </ul>
 
 <h2 id="installation">Installation</h2>
