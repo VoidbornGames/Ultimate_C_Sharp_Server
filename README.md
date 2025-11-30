@@ -5,7 +5,7 @@
             <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
             <div class="header-links">
                 <a href="https://dashboard.voidgames.ir" target="_blank"><strong>Live Dashboard</strong></a> •
-                <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/wiki">Documentation</a> •
+                <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Documentation</a> •
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Getting Started</a>
             </div>
             <div class="badges">
@@ -20,7 +20,7 @@
 <nav class="toc">
             <h2 id="table-of-contents">Table of Contents</h2>
             <ul>
-                <li><a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/wiki">Wiki</a></li>
+                <li><a href="https://github.com/VoidbornGames/UltimateServer/wiki">Wiki</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#requirements">Requirements</a></li>
                 <li><a href="#installation">Installation</a></li>
@@ -164,12 +164,12 @@
 <h2 id="installation">Installation</h2>
         <h3 id="option-1-automated-installation-script">Option 1: Automated Installation Script</h3>
         <p>Run the install script:</p>
-        <pre><code class="language-bash">bash &lt;(curl -s https://raw.githubusercontent.com/VoidbornGames/Ultimate_C_Sharp_Server/main/install.sh)</code></pre>
+        <pre><code class="language-bash">bash &lt;(curl -s https://raw.githubusercontent.com/VoidbornGames/UltimateServer/main/install.sh)</code></pre>
         <h3 id="option-2-manual-installation">Option 2: Manual Installation</h3>
         <ol>
             <li>Clone the repository:
-                <pre><code class="language-bash">git clone https://github.com/VoidbornGames/Ultimate_C_Sharp_Server.git
-cd Ultimate_C_Sharp_Server</code></pre>
+                <pre><code class="language-bash">git clone https://github.com/VoidbornGames/UltimateServer.git
+cd UltimateServer</code></pre>
             </li>
             <li>Install dependencies:
                 <pre><code class="language-bash"># Install .NET 8.0 (if not already installed)
@@ -484,7 +484,7 @@ dotnet VoiceClient.dll</code></pre>
         </ol>
 
 <h2 id="license">License</h2>
-        <p>This project is licensed - see the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server?tab=License-1-ov-file">LICENSE</a> file for details.</p>
+        <p>This project is licensed - see the <a href="https://github.com/VoidbornGames/UltimateServer?tab=License-1-ov-file">LICENSE</a> file for details.</p>
 
 <h2 id="contributing">Contributing</h2>
         <p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
@@ -499,8 +499,8 @@ dotnet VoiceClient.dll</code></pre>
 <h2 id="support">Support</h2>
         <p>If you need help or have questions:</p>
         <ul>
-            <li>Check the <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/wiki">Wiki</a> for documentation</li>
-            <li>Search existing <a href="https://github.com/VoidbornGames/Ultimate_C_Sharp_Server/issues">Issues</a> for answers</li>
+            <li>Check the <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Wiki</a> for documentation</li>
+            <li>Search existing <a href="https://github.com/VoidbornGames/UltimateServer/issues">Issues</a> for answers</li>
             <li>Create a new issue if you can't find an answer to your question</li>
         </ul>
     </main>
