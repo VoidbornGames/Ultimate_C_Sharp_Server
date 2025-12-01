@@ -40,7 +40,7 @@
             </ul>
         </nav>
 
-### Supported OS
+### Supported Ubuntu OS
 |  Version  |     Supported      |
 | --------- | ------------------ |
 |   24.04   | :white_check_mark: |
