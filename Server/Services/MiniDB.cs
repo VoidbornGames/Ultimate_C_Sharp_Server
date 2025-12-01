@@ -14,8 +14,8 @@ namespace Server.Services
         }
 
         private readonly Dictionary<string, IndexEntry> index;
-        private readonly string indexFile = "mdb.index";
-        private readonly string databaseFile = "server.mdb";
+        public readonly string indexFile = "mdb.index";
+        public readonly string databaseFile = "server.mdb";
         private readonly Logger _logger;
 
         public MiniDB(Logger logger)
@@ -103,6 +103,12 @@ namespace Server.Services
         // ----------------------------------------------------------------------
         public async Task InsertDataAsync<T>(string key, T obj)
         {
+            if (key.Contains("|"))
+            {
+                _logger.LogError($"[MiniDB] You cant use character '|' in a key!");
+                return;
+            }
+
             try
             {
                 byte[] data = Serialize(obj);

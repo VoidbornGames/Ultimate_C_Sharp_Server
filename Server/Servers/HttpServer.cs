@@ -516,7 +516,7 @@ namespace UltimateServer.Services
                 if (loginRequest != null)
                 {
                     var (user, message) = await _userService.AuthenticateUserAsync(loginRequest);
-                    if (user != null)
+                    if (user != null && user.Role.ToLower() == "admin")
                     {
                         var token = _authService.GenerateJwtToken(user);
                         var responseData = new

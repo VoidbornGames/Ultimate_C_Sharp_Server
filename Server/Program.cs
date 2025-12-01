@@ -55,6 +55,7 @@ namespace UltimateServer
             services.AddSingleton<DataBox>();
             services.AddSingleton<HyperServerManager>();
             services.AddSingleton<MiniDB>();
+            services.AddSingleton<DataBackuper>();
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -76,6 +77,7 @@ namespace UltimateServer
             services.AddScoped<DataBox>();
             services.AddScoped<HyperServerManager>();
             services.AddScoped<MiniDB>();
+            services.AddScoped<DataBackuper>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -103,17 +105,21 @@ namespace UltimateServer
             var hyperServerManager = serviceProvider.GetRequiredService<HyperServerManager>();
             var dataBox = serviceProvider.GetRequiredService<DataBox>();
             var miniDB = serviceProvider.GetRequiredService<MiniDB>();
+            var dataBackuper = serviceProvider.GetRequiredService<DataBackuper>();
 
             // DataBox must be the first one to start becuase many of codes might use it for data saving!
             await miniDB.Start();
-            await dataBox.StartAsync();
+            await dataBox.Start();
+
             await userService.LoadUsersAsync();
+
             await httpServer.Start();
             await tcpServer.Start();
             await udpServer.Start();
             await sitePress.Start();
             await sftpServer.Start();
             await hyperServerManager.Start();
+            await dataBackuper.Start();
 
             // Load plugins AFTER starting the main servers
             pluginManager._serviceProvider = serviceProvider;
@@ -174,7 +180,7 @@ namespace UltimateServer
 
 
                 // DataBox must be the last one to stop becuase many of codes might use it for data saving!
-                await dataBox.StopAsync();
+                await dataBox.Stop();
                 await miniDB.Stop();
 
                 // A 300ms delay to be sure everything has been saved.
@@ -182,18 +188,19 @@ namespace UltimateServer
                 Environment.Exit(0);
             };
 
+
             // Test Section
             //await miniDB.InsertDataAsync("Test-Key", new User() { Email = "hgjhg@gm.com"} );
 
             //var db = await miniDB.GetDataAsync<User>("Test-Key");
             //logger.Log($@"Test: {db.Email}");
 
+
             // Just an infinite delay so the server wont stop as soon as it starts
             await Task.Delay(Timeout.Infinite);
 
 
-            // 1 => TODO: Create a Database system named MiniDB like DataBox but with LightSQL instead of json.
-            // 2 => TODO: Finish the HyperServerManager panel and add it to the main panel.
+            // TODO: Finish the HyperServerManager panel and add it to the main panel.
         }
     }
 }

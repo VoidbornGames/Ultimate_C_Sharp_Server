@@ -8,7 +8,7 @@ namespace Server.Services
     {
         private Dictionary<string, object> Data;
         private readonly Logger _logger;
-        private readonly string saveFile = "server.data";
+        public readonly string saveFile = "server.data";
         private readonly object _lock = new object(); // For thread safety
 
         public DataBox(Logger logger)
@@ -17,7 +17,7 @@ namespace Server.Services
             Data = new Dictionary<string, object>();
         }
 
-        public async Task StartAsync()
+        public async Task Start()
         {
             try
             {
@@ -31,7 +31,7 @@ namespace Server.Services
             }
         }
 
-        public async Task StopAsync()
+        public async Task Stop()
         {
             await Save();
             _logger.Log("📦 DataBox stopped and data saved");

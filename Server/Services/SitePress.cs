@@ -12,7 +12,7 @@ namespace Server.Services
         private SftpServer _sftpServer;
 
         private string templateFolder;
-        private string sitesConfig = "sites.json";
+        public string sitesConfig { get; private set; } = "sites.json";
 
         public Dictionary<string, int> sites;
 

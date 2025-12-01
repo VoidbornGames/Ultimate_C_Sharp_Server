@@ -119,7 +119,7 @@ namespace UltimateServer.Services
         /// <returns></returns>
         public bool ValidateRequester(string username, string encryptedPassword)
         {
-            var user = _userService.Users.FirstOrDefault(user => user.Username == username);
+            var user = _userService.Users.First(user => user.Username == username);
             if (user == null)
                 return false;
 
