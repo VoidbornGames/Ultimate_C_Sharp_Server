@@ -118,9 +118,11 @@
                 <ul>
                     <li><strong>Low-Latency UDP</strong>: Built on UDP for real-time communication with minimal delay.</li>
                     <li><strong>High-Quality Audio</strong>: Supports clear 16-bit audio at 16kHz for natural-sounding voice.</li>
+                    <li><strong>Room & Channel System</strong>: Organize conversations with dedicated rooms and channels.</li>
+                    <li><strong>Targeted Communication</strong>: Voice packets are only forwarded to clients in the same room and channel.</li>
                     <li><strong>Multi-Client Support</strong>: Seamlessly connect multiple clients for group conversations.</li>
-                    <li><strong>Robust Client Management</strong>: Automatically handles client connections and disconnections.</li>
-                    <li><strong>Easy-to-Use Client</strong>: A simple C# client library is provided for quick integration into any application.</li>
+                    <li><strong>Robust Client Management</strong>: Automatically handles client connections, room joins, and disconnections.</li>
+                    <li><strong>Easy-to-Use Client</strong>: A simple C# client library with room/channel commands for quick integration.</li>
                 </ul>
             </div>
             <div class="feature-card">
