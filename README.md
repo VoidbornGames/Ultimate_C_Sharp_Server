@@ -8,11 +8,6 @@
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Documentation</a> •
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Getting Started</a>
             </div>
-            <div class="badges">
-                <span>.NET 8.0</span>
-                <span>Platform: Linux</span>
-                <span>License: Custom</span>
-            </div>
             <p><em>Note: Live dashboard login credentials have been changed due to abuse.</em></p>
             <img src="https://voidgames.ir/archive/usshot.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
         </div>
