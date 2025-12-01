@@ -107,7 +107,7 @@ namespace UltimateServer
             var miniDB = serviceProvider.GetRequiredService<MiniDB>();
             var dataBackuper = serviceProvider.GetRequiredService<DataBackuper>();
 
-            // DataBox must be the first one to start becuase many of codes might use it for data saving!
+            // DataBox and miniDB must be the first one to start becuase many of codes might use it for data saving!
             await miniDB.Start();
             await dataBox.Start();
 
@@ -179,7 +179,7 @@ namespace UltimateServer
                 await hyperServerManager.StopAsync();
 
 
-                // DataBox must be the last one to stop becuase many of codes might use it for data saving!
+                // DataBox and miniDB must be the last one to stop becuase many of codes might use it for data saving!
                 await dataBox.Stop();
                 await miniDB.Stop();
 
