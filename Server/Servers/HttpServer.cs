@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection; // Required for IServiceProvider
 using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.Crmf;
 using Server.Services;
 using System;
 using System.Collections.Concurrent;
@@ -196,21 +197,21 @@ namespace UltimateServer.Services
 
                     // Plugin management endpoints
                     case "/api/plugins":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandlePluginsListAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/api/plugins/upload":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandlePluginUploadAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/api/plugins/reload":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandlePluginsReloadAsync(request, response);
                         else
                             SendUnauthorized(response);
@@ -218,35 +219,35 @@ namespace UltimateServer.Services
 
                     // Protected endpoints - require authentication
                     case "/stats":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleStatsAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/system":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleSystemAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/logs":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleLogsAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/videos":
-                        if (ValidateAuthentication(request))
+                        if (ValidateUserAuthentication(request))
                             await HandleVideosAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/upload-url":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleVideoUploadAsync(request, response);
                         else
                             SendUnauthorized(response);
@@ -264,7 +265,7 @@ namespace UltimateServer.Services
                         break;
 
                     case "/api/sites":
-                        if (ValidateAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleRequestSitesAsync(request, response);
                         else
                             SendUnauthorized(response);
@@ -275,7 +276,7 @@ namespace UltimateServer.Services
                         if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
                             (request.Url.AbsolutePath.EndsWith("/enable") || request.Url.AbsolutePath.EndsWith("/disable")))
                         {
-                            if (ValidateAuthentication(request))
+                            if (ValidateAdminAuthentication(request))
                             {
                                 var pathParts = request.Url.AbsolutePath.Split('/');
                                 if (pathParts.Length >= 4)
@@ -295,7 +296,7 @@ namespace UltimateServer.Services
                         }
                         else if (request.Url.AbsolutePath.StartsWith("/videos/"))
                         {
-                            if (ValidateAuthentication(request))
+                            if (ValidateAdminAuthentication(request))
                                 await ServeVideoAsync(request, response);
                             else
                                 SendUnauthorized(response);
@@ -567,7 +568,7 @@ namespace UltimateServer.Services
                 if (registerRequest != null)
                 {
                     var (user, message) = await _userService.CreateUserAsync(registerRequest);
-                    if (user != null)
+                    if (user != null && user.Role.ToLower() == "admin")
                     {
                         var token = _authService.GenerateJwtToken(user);
                         var responseData = new
@@ -837,7 +838,7 @@ namespace UltimateServer.Services
         // AUTHENTICATION & AUTHORIZATION HELPERS
         // ========================================================================
 
-        private bool ValidateAuthentication(HttpListenerRequest request)
+        private bool ValidateAdminAuthentication(HttpListenerRequest request)
         {
             string authHeader = request.Headers["Authorization"];
             if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
@@ -846,14 +847,11 @@ namespace UltimateServer.Services
             }
 
             string token = authHeader.Substring("Bearer ".Length);
+            if (_authService.GetRoleFromToken(token).ToLower() == "admin")
+                if (_authService.ValidateJwtToken(token)) 
+                    return true;
 
-            if (!_authService.ValidateJwtToken(token))
-            {
-                return false;
-            }
-
-            var role = _authService.GetUserRoleFromToken(token);
-            return role == "admin";
+            return false;
         }
 
         private bool ValidateUserAuthentication(HttpListenerRequest request)
@@ -865,14 +863,7 @@ namespace UltimateServer.Services
             }
 
             string token = authHeader.Substring("Bearer ".Length);
-
-            if (!_authService.ValidateJwtToken(token))
-            {
-                return false;
-            }
-
-            var role = _authService.GetUserRoleFromToken(token);
-            return role == "admin" || role == "user";
+            return _authService.ValidateJwtToken(token);
         }
 
         private void SendUnauthorized(HttpListenerResponse response)

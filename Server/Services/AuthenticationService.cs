@@ -129,29 +129,6 @@ namespace UltimateServer.Services
             return principal;
         }
 
-
-        public string GetUserRoleFromToken(string token)
-        {
-            try
-            {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var jsonToken = tokenHandler.ReadToken(token);
-                var jwtToken = jsonToken as JwtSecurityToken;
-
-                if (jwtToken == null)
-                {
-                    return null;
-                }
-
-                var roleClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role);
-                return roleClaim?.Value;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
         public bool ValidateJwtToken(string token)
         {
             try
@@ -173,6 +150,22 @@ namespace UltimateServer.Services
                 return false;
             }
         }
+
+        public string GetRoleFromToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var principal = tokenHandler.ValidateToken(token, new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = _jwtKey,
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ClockSkew = TimeSpan.Zero
+            }, out _);
+
+            return principal.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        }
+
 
         public bool IsAccountLocked(string username)
         {
