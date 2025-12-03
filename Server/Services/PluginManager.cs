@@ -6,6 +6,10 @@ using UltimateServer.Plugins;
 
 namespace UltimateServer.Services
 {
+    /// <summary>
+    /// Manages the loading, unloading, and lifecycle of plugins in the application.
+    /// Handles plugin discovery, instantiation, and provides isolation between plugins.
+    /// </summary>
     public class PluginManager
     {
         private readonly Logger _logger;
@@ -24,6 +28,12 @@ namespace UltimateServer.Services
         // original absolute path -> unique temp copy path
         private readonly Dictionary<string, string> _uniquePaths = new();
 
+        /// <summary>
+        /// Initializes a new instance of the PluginManager class.
+        /// </summary>
+        /// <param name="logger">Logger instance for logging plugin operations</param>
+        /// <param name="eventBus">Event bus for publishing plugin-related events</param>
+        /// <param name="serviceProvider">Service provider for dependency injection</param>
         public PluginManager(Logger logger, IEventBus eventBus, IServiceProvider serviceProvider)
         {
             _logger = logger;
@@ -31,6 +41,11 @@ namespace UltimateServer.Services
             _serviceProvider = serviceProvider;
         }
 
+        /// <summary>
+        /// Scans the specified directory for plugin DLLs and loads them.
+        /// Creates temporary copies of plugins to enable hot-reloading and isolation.
+        /// </summary>
+        /// <param name="pluginsDirectory">Directory containing plugin DLLs</param>
         public async Task LoadPluginsAsync(string pluginsDirectory)
         {
             if (!Directory.Exists(pluginsDirectory))
@@ -67,6 +82,12 @@ namespace UltimateServer.Services
             _logger.Log($"🔌 Plugin loading complete. {_loadedPlugins.Count} plugins loaded.");
         }
 
+        /// <summary>
+        /// Loads a plugin from a specific DLL file.
+        /// Creates a unique copy to enable isolation and loads it into a separate assembly context.
+        /// </summary>
+        /// <param name="dllFile">Path to the plugin DLL file</param>
+        /// <param name="tempDir">Temporary directory for plugin copies</param>
         private async Task LoadPluginFromFileAsync(string dllFile, string tempDir)
         {
             try
@@ -147,6 +168,11 @@ namespace UltimateServer.Services
             }
         }
 
+        /// <summary>
+        /// Calls the OnUpdateAsync method for all loaded plugins.
+        /// Runs each plugin update in parallel without waiting for completion.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token for the operation</param>
         public async Task UpdateLoadedPluginsAsync(CancellationToken cancellationToken = default)
         {
             foreach (var pluginEntry in _loadedPlugins)
@@ -155,7 +181,7 @@ namespace UltimateServer.Services
                 {
                     var plugin = pluginEntry.Value;
                     var context = _pluginContexts[plugin.Name];
-                    _ = Task.Run(async() => plugin.OnUpdateAsync(context));
+                    _ = Task.Run(async () => plugin.OnUpdateAsync(context));
                 }
                 catch (Exception ex)
                 {
@@ -164,11 +190,24 @@ namespace UltimateServer.Services
             }
         }
 
+        /// <summary>
+        /// Gets a read-only dictionary of all loaded plugins.
+        /// </summary>
+        /// <returns>Dictionary mapping plugin names to plugin instances</returns>
         public IReadOnlyDictionary<string, IPlugin> GetLoadedPlugins() => _loadedPlugins;
 
+        /// <summary>
+        /// Gets the context associated with a specific plugin.
+        /// </summary>
+        /// <param name="pluginName">Name of the plugin</param>
+        /// <returns>PluginContext if found, null otherwise</returns>
         public PluginContext? GetPluginContext(string pluginName)
             => _pluginContexts.TryGetValue(pluginName, out var context) ? context : null;
 
+        /// <summary>
+        /// Unloads all loaded plugins and cleans up resources.
+        /// Calls OnUnloadAsync for each plugin, unloads assembly contexts, and removes temporary files.
+        /// </summary>
         public async Task UnloadAllPluginsAsync()
         {
             _logger.Log("🔌 Unloading all plugins...");
@@ -230,6 +269,12 @@ namespace UltimateServer.Services
             _logger.Log("🔌 All plugins unloaded.");
         }
 
+        /// <summary>
+        /// Determines if a file name represents a generated copy based on naming convention.
+        /// Generated copies have a GUID appended to the filename.
+        /// </summary>
+        /// <param name="fileNameWithoutExtension">File name without extension</param>
+        /// <returns>True if the file appears to be a generated copy</returns>
         private static bool IsGeneratedCopy(string fileNameWithoutExtension)
         {
             // Heuristic: if the last underscore-separated segment is a GUID, it's a generated copy
@@ -245,6 +290,10 @@ namespace UltimateServer.Services
             return Guid.TryParse(last, out _);
         }
 
+        /// <summary>
+        /// Safely attempts to delete a file, ignoring any exceptions.
+        /// </summary>
+        /// <param name="path">Path to the file to delete</param>
         private static void SafeDelete(string path)
         {
             try
@@ -258,6 +307,11 @@ namespace UltimateServer.Services
             }
         }
 
+        /// <summary>
+        /// Validates that a file is a valid .NET assembly.
+        /// </summary>
+        /// <param name="absolutePath">Absolute path to the file to validate</param>
+        /// <returns>True if the file is a valid .NET assembly</returns>
         private bool IsValidNetAssembly(string absolutePath)
         {
             try
@@ -283,15 +337,28 @@ namespace UltimateServer.Services
         }
     }
 
+    /// <summary>
+    /// Custom assembly load context for plugins that enables isolation and unloading.
+    /// Resolves dependencies from the plugin's own directory first.
+    /// </summary>
     public class PluginLoadContext : AssemblyLoadContext
     {
         private readonly string _pluginPath;
 
+        /// <summary>
+        /// Initializes a new instance of the PluginLoadContext class.
+        /// </summary>
+        /// <param name="pluginPath">Path to the plugin assembly</param>
         public PluginLoadContext(string pluginPath) : base(isCollectible: true)
         {
             _pluginPath = Path.GetFullPath(pluginPath);
         }
 
+        /// <summary>
+        /// Loads an assembly given its name, first trying to resolve from the plugin directory.
+        /// </summary>
+        /// <param name="assemblyName">Name of the assembly to load</param>
+        /// <returns>Loaded assembly or null if not found</returns>
         protected override Assembly? Load(AssemblyName assemblyName)
         {
             // attempt to resolve dependency from same directory as the plugin copy

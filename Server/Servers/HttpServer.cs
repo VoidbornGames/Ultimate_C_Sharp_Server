@@ -516,7 +516,7 @@ namespace UltimateServer.Services
                 if (loginRequest != null)
                 {
                     var (user, message) = await _userService.AuthenticateUserAsync(loginRequest);
-                    if (user != null && user.Role.ToLower() == "admin")
+                    if (user != null)
                     {
                         var token = _authService.GenerateJwtToken(user);
                         var responseData = new
@@ -846,7 +846,33 @@ namespace UltimateServer.Services
             }
 
             string token = authHeader.Substring("Bearer ".Length);
-            return _authService.ValidateJwtToken(token);
+
+            if (!_authService.ValidateJwtToken(token))
+            {
+                return false;
+            }
+
+            var role = _authService.GetUserRoleFromToken(token);
+            return role == "admin";
+        }
+
+        private bool ValidateUserAuthentication(HttpListenerRequest request)
+        {
+            string authHeader = request.Headers["Authorization"];
+            if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer "))
+            {
+                return false;
+            }
+
+            string token = authHeader.Substring("Bearer ".Length);
+
+            if (!_authService.ValidateJwtToken(token))
+            {
+                return false;
+            }
+
+            var role = _authService.GetUserRoleFromToken(token);
+            return role == "admin" || role == "user";
         }
 
         private void SendUnauthorized(HttpListenerResponse response)

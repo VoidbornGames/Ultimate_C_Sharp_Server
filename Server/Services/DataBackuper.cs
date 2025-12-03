@@ -17,7 +17,7 @@ namespace Server.Services
         private Logger _logger;
 
 
-        public DataBackuper(Logger logger, FilePaths filePaths, SitePress sitePress, DataBox dataBox, MiniDB miniDB)
+        public DataBackuper(Logger logger, FilePaths filePaths, SitePress sitePress, DataBox dataBox, ConfigManager configManager)
         {
             _logger = logger;
             _serverFiles = new List<string>();
@@ -26,8 +26,8 @@ namespace Server.Services
             _serverFiles.Add(filePaths.ConfigFile);
             _serverFiles.Add(sitePress.sitesConfig);
             _serverFiles.Add(dataBox.saveFile);
-            _serverFiles.Add(miniDB.databaseFile);
-            _serverFiles.Add(miniDB.indexFile);
+            _serverFiles.Add(configManager.Config.MiniDB_Options.IndexFile);
+            _serverFiles.Add(configManager.Config.MiniDB_Options.DatabaseFile);
             _serverFiles.Add("sftp.json");
         }
 

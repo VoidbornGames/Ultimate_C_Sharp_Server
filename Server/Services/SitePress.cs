@@ -5,6 +5,10 @@ using UltimateServer.Services;
 
 namespace Server.Services
 {
+    /// <summary>
+    /// Manages website creation, configuration, and deletion on a server.
+    /// Handles Nginx configuration, PHP-FPM pool management, SSL certificates, and SFTP user accounts.
+    /// </summary>
     class SitePress
     {
         private Logger _logger;
@@ -12,10 +16,23 @@ namespace Server.Services
         private SftpServer _sftpServer;
 
         private string templateFolder;
+
+        /// <summary>
+        /// Gets the path to the sites configuration file
+        /// </summary>
         public string sitesConfig { get; private set; } = "sites.json";
 
+        /// <summary>
+        /// Dictionary containing site names and their corresponding ports
+        /// </summary>
         public Dictionary<string, int> sites;
 
+        /// <summary>
+        /// Initializes a new instance of the SitePress class
+        /// </summary>
+        /// <param name="logger">Logger instance for logging operations</param>
+        /// <param name="nginx">Nginx service instance for managing web server configurations</param>
+        /// <param name="sftpServer">SFTP server instance for managing user accounts</param>
         public SitePress(Logger logger, Nginx nginx, SftpServer sftpServer)
         {
             _logger = logger;
@@ -24,18 +41,30 @@ namespace Server.Services
             templateFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Template");
         }
 
+        /// <summary>
+        /// Starts the SitePress service by loading existing sites
+        /// </summary>
         public async Task Start()
         {
             sites = await LoadSites();
             _logger.Log("🎨 SitePress has been started!");
         }
 
+        /// <summary>
+        /// Stops the SitePress service and saves the current sites configuration
+        /// </summary>
         public async Task StopAsync()
         {
             await SaveSites();
             _logger.Log("🎨 SitePress stopped");
         }
 
+        /// <summary>
+        /// Creates a new website with the specified name and port
+        /// </summary>
+        /// <param name="name">The domain of the website</param>
+        /// <param name="port">The port number for the website</param>
+        /// <returns>True if the site was created successfully, false otherwise</returns>
         public async Task<bool> CreateSite(string name, int port)
         {
             var sitePath = "/var/www/" + name;
@@ -97,6 +126,11 @@ namespace Server.Services
             }
         }
 
+        /// <summary>
+        /// Deletes an existing website
+        /// </summary>
+        /// <param name="name">The domain of the website to delete</param>
+        /// <returns>True if the site was deleted successfully, false otherwise</returns>
         public async Task<bool> DeleteSite(string name)
         {
             var sitePath = "/var/www/" + name;
@@ -140,6 +174,11 @@ namespace Server.Services
             }
         }
 
+        /// <summary>
+        /// Creates a PHP-FPM pool configuration for a specific site
+        /// </summary>
+        /// <param name="siteName">The domain of the site</param>
+        /// <param name="sitePath">The file path of the site</param>
         private async Task CreatePhpFpmPool(string siteName, string sitePath)
         {
             // 5. Replace with SSL config
@@ -156,6 +195,10 @@ namespace Server.Services
             await _nginx.RunCommand("sudo", "systemctl restart php8.3-fpm");
         }
 
+        /// <summary>
+        /// Deletes a PHP-FPM pool configuration for a specific site
+        /// </summary>
+        /// <param name="siteName">The name of the site</param>
         private async Task DeletePhpFpmPool(string siteName)
         {
             var poolFilePath = $"/etc/php/8.3/fpm/pool.d/{siteName}.conf";
@@ -168,12 +211,19 @@ namespace Server.Services
             }
         }
 
+        /// <summary>
+        /// Saves the sites configuration to a JSON file
+        /// </summary>
         public async Task SaveSites()
         {
             var _sites = JsonConvert.SerializeObject(sites);
             await File.WriteAllTextAsync(sitesConfig, _sites);
         }
 
+        /// <summary>
+        /// Loads the sites configuration from a JSON file
+        /// </summary>
+        /// <returns>Dictionary containing site names and their ports</returns>
         public async Task<Dictionary<string, int>> LoadSites()
         {
             if (File.Exists(sitesConfig))
@@ -185,6 +235,11 @@ namespace Server.Services
             return new Dictionary<string, int>();
         }
 
+        /// <summary>
+        /// Recursively copies a directory and its contents to another location
+        /// </summary>
+        /// <param name="sourceDir">The source directory path</param>
+        /// <param name="destinationDir">The destination directory path</param>
         static void CopyDirectory(string sourceDir, string destinationDir)
         {
             if (!Directory.Exists(destinationDir))
@@ -206,10 +261,18 @@ namespace Server.Services
         }
     }
 
+    /// <summary>
+    /// Utility class for generating simple random passwords
+    /// </summary>
     public static class SimplePasswordGenerator
     {
         private const string Chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
 
+        /// <summary>
+        /// Generates a random password with the specified length
+        /// </summary>
+        /// <param name="length">The length of the password to generate (default: 16)</param>
+        /// <returns>A randomly generated password</returns>
         public static string Generate(int length = 16)
         {
             var random = new StringBuilder(length);

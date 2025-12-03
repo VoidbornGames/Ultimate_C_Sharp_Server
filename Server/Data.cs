@@ -53,6 +53,7 @@ namespace UltimateServer.Models
         public string email_username { get; set; } = "your-smtp-email-username";
         public string email_password { get; set; } = "your-smtp-email-password";
         public bool email_useSsl { get; set; } = false;
+        public MiniDBOptions MiniDB_Options { get; set; }
     }
 
     public class LoginRequest
@@ -179,5 +180,49 @@ namespace UltimateServer.Models
         Task RunServer();
         Task StopServer();
         Task UninstallServer();
+    }
+
+    /// <summary>
+    /// Configuration options for the MiniDB instance.
+    /// </summary>
+    public class MiniDBOptions
+    {
+        /// <summary>
+        /// The filename for the database data file.
+        /// Defaults to "server.mdb".
+        /// </summary>
+        public string DatabaseFile { get; set; } = "server.mdb";
+
+        /// <summary>
+        /// The filename for the database index file.
+        /// Defaults to "mdb.index".
+        /// </summary>
+        public string IndexFile { get; set; } = "mdb.index";
+    }
+
+    /// <summary>
+    /// Base exception for all MiniDB related errors.
+    /// </summary>
+    public class MiniDBException : Exception
+    {
+        public MiniDBException(string message) : base(message) { }
+        public MiniDBException(string message, Exception innerException) : base(message, innerException) { }
+    }
+
+    /// <summary>
+    /// Thrown when a requested key is not found in the database.
+    /// </summary>
+    public class MiniDBKeyNotFoundException : MiniDBException
+    {
+        public MiniDBKeyNotFoundException(string key) : base($"The key '{key}' was not found in the database.") { }
+    }
+
+    /// <summary>
+    /// Thrown when there is a type mismatch between the requested type and the stored object's type.
+    /// </summary>
+    public class MiniDBTypeMismatchException : MiniDBException
+    {
+        public MiniDBTypeMismatchException(string key, Type requestedType, Type actualType)
+            : base($"Type mismatch for key '{key}'. Requested type: {requestedType.Name}, Actual type: {actualType.Name}.") { }
     }
 }
