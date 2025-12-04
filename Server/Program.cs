@@ -189,12 +189,6 @@ namespace UltimateServer
             };
 
 
-            // Test Section
-            //await miniDB.InsertDataAsync("Test-Key", new User() { Email = "hgjhg@gm.com"} );
-
-            //var db = await miniDB.GetDataAsync<User>("Test-Key");
-            //logger.Log($@"Test: {db.Email}");
-
 
             // Just an infinite delay so the server wont stop as soon as it starts
             await Task.Delay(Timeout.Infinite);
