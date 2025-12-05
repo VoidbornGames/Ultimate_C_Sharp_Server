@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using UltimateServer.Services;
 
 namespace UltimateServer.Models
 {
@@ -53,7 +54,7 @@ namespace UltimateServer.Models
         public string email_username { get; set; } = "your-smtp-email-username";
         public string email_password { get; set; } = "your-smtp-email-password";
         public bool email_useSsl { get; set; } = false;
-        public MiniDBOptions MiniDB_Options { get; set; }
+        public MiniDBOptions MiniDB_Options { get; set; } = new MiniDBOptions();
         public int BackupPerHour { get; set; } = 12;
         public string BackupFolder { get; set; } = "Backups";
         public bool BackupSites { get; set; } = false;
@@ -183,24 +184,6 @@ namespace UltimateServer.Models
         Task RunServer();
         Task StopServer();
         Task UninstallServer();
-    }
-
-    /// <summary>
-    /// Configuration options for the MiniDB instance.
-    /// </summary>
-    public class MiniDBOptions
-    {
-        /// <summary>
-        /// The filename for the database data file.
-        /// Defaults to "server.mdb".
-        /// </summary>
-        public string DatabaseFile { get; set; } = "server.mdb";
-
-        /// <summary>
-        /// The filename for the database index file.
-        /// Defaults to "mdb.index".
-        /// </summary>
-        public string IndexFile { get; set; } = "mdb.index";
     }
 
     /// <summary>

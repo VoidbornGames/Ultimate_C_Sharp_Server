@@ -35,7 +35,7 @@ namespace UltimateServer.Services
             _serverFiles.Add(filePaths.UsersFile);
             _serverFiles.Add(filePaths.ConfigFile);
             _serverFiles.Add(sitePress.sitesConfig);
-            _serverFiles.Add(dataBox.saveFile);
+            _serverFiles.Add(dataBox._options.SaveFile);
             _serverFiles.Add(configManager.Config.MiniDB_Options.IndexFile);
             _serverFiles.Add(configManager.Config.MiniDB_Options.DatabaseFile);
             _serverFiles.Add("sftp.json");
