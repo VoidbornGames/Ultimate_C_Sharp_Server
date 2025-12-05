@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 using UltimateServer.Models;
 using UltimateServer.Services;
 
-namespace Server.Servers
+namespace UltimateServer.Servers
 {
     // Represents a channel within a room
     internal class Channel

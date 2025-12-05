@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using UltimateServer.Models;
 using UltimateServer.Services;
 
-namespace Server
+namespace UltimateServer
 {
     class Nginx
     {

@@ -1,20 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection; // Required for IServiceProvider
 using Newtonsoft.Json;
-using Org.BouncyCastle.Asn1.Crmf;
-using Server.Services;
-using System;
+using UltimateServer.Services;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks;
 using UltimateServer.Models;
-using UltimateServer.Services;
 
-namespace UltimateServer.Services
+namespace UltimateServer.Servers
 {
     public class HttpServer
     {
@@ -32,6 +26,7 @@ namespace UltimateServer.Services
         private CancellationTokenSource _cts;
         private double _lastCpuUsage = 0;
         private readonly ConcurrentDictionary<TcpClient, bool> _activeClients = new();
+        private bool useCompression = false;
 
         public HttpServer(
             ServerSettings settings,
@@ -55,6 +50,7 @@ namespace UltimateServer.Services
             _compressionService = new CompressionService(new ServerConfig(), logger);
             _cts = new CancellationTokenSource();
             _configManager = configManager;
+            useCompression = configManager.Config.EnableCompression;
         }
 
         public async Task Start()

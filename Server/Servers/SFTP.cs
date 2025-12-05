@@ -1,19 +1,13 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
-using Server.Services;
-using System;
+﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Tls;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Net;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Xml.Linq;
 using UltimateServer.Models;
 using UltimateServer.Services;
 
-namespace Server.Services
+namespace UltimateServer.Services
 {
     public class SftpServer
     {
@@ -21,31 +15,28 @@ namespace Server.Services
         private readonly Logger _logger;
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
-        private AuthenticationService _authenticationService;
+        private UserService _userService;
         private ServerConfig _serverConfig;
+        private AuthenticationService _authenticationService;
 
-        // --- Simple user-to-path mapping ---
-        // Add your users and their desired folder paths here.
-        // The path is relative to the main 'Files' directory.
         public Dictionary<string, string> usersFolders = new();
 
-        // --- Simple user-to-password mapping ---
-        // In a real app, you should hash these passwords!
-        public Dictionary<string, string> userCredentials = new();
 
         public SftpServer(
             ServerSettings settings,
             Logger logger,
             IServiceProvider serviceProvider,
-            AuthenticationService authenticationService,
+            UserService userService,
             ConfigManager configManager,
-            ServerSettings serverSettings)
+            ServerSettings serverSettings,
+            AuthenticationService authenticationService)
         {
             _port = serverSettings.sftpPort;
             _logger = logger;
+            _authenticationService = authenticationService;
             // No longer need to inject UserService
             _cts = new CancellationTokenSource();
-            _authenticationService = authenticationService;
+            _userService = userService;
             _serverConfig = configManager.Config;
         }
 
@@ -112,7 +103,6 @@ namespace Server.Services
         {
             var credentials = new sftpData
             {
-                _userCredentials = userCredentials,
                 _usersSites = usersFolders
             };
 
@@ -122,14 +112,12 @@ namespace Server.Services
         public async Task Load()
         {
             var data = JsonConvert.DeserializeObject<sftpData>(await File.ReadAllTextAsync("sftp.json"));
-            userCredentials = data._userCredentials;
             usersFolders = data._usersSites;
         }
 
         struct sftpData
         {
             public Dictionary<string, string> _usersSites;
-            public Dictionary<string, string> _userCredentials;
         }
 
         private async Task HandleRequestAsync(HttpListenerContext context)
@@ -167,42 +155,42 @@ namespace Server.Services
                         if (ValidateAuthentication(request))
                             await HandleFileListAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     case "/api/files/upload":
                         if (ValidateAuthentication(request))
                             await HandleFileUploadAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     case "/api/files/download":
                         if (ValidateAuthentication(request))
                             await HandleFileDownloadAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     case "/api/files/create":
                         if (ValidateAuthentication(request))
                             await HandleFileCreateAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     case "/api/files/delete":
                         if (ValidateAuthentication(request))
                             await HandleFileDeleteAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     case "/api/files/save":
                         if (ValidateAuthentication(request))
                             await HandleFileSaveAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     // NEW: Rename endpoint
@@ -210,7 +198,7 @@ namespace Server.Services
                         if (ValidateAuthentication(request))
                             await HandleFileRenameAsync(request, response);
                         else
-                            SendUnauthorized(response);
+                            await SendUnauthorized(response);
                         break;
 
                     default:
@@ -461,8 +449,25 @@ namespace Server.Services
                     loginRequest.TryGetValue("Password", out var password))
                 {
                     // Check against the simple credentials dictionary
-                    if (userCredentials.TryGetValue(username, out var correctPassword) && password == correctPassword)
+                    var _user = _userService.Users.FirstOrDefault(u => u.Username == username, new User() { Username = "Invalid User" });
+                    if(_user.Username == "Invalid User")
                     {
+                        response.StatusCode = 401;
+                        await WriteJsonResponseAsync(response, new { success = false, message = "Invalid credentials" });
+                        return;
+                    }
+                    if (await _authenticationService.IsAccountLocked(_user.Username))
+                    {
+                        _logger.LogSecurity($"[SFTP Login] FAILED for user: '{username}'. Too many tries.");
+                        response.StatusCode = 401;
+                        await WriteJsonResponseAsync(response, new { success = false, message = "Too many tries" });
+                        return;
+                    }
+
+
+                    if (_authenticationService.VerifyPassword(password, _user.Password) && _user.Role == "sftp user")
+                    {
+                        _authenticationService.ResetFailedLoginAttempts(_user.Username);
                         var token = Guid.NewGuid().ToString("N");
                         Sessions[token] = (DateTime.UtcNow.AddHours(2), username);
 
@@ -477,6 +482,7 @@ namespace Server.Services
                     }
                     else
                     {
+                        _authenticationService.RecordFailedLoginAttempt(username);
                         _logger.LogSecurity($"[SFTP Login] FAILED for user: '{username}'. Invalid credentials.");
                         response.StatusCode = 401;
                         await WriteJsonResponseAsync(response, new { success = false, message = "Invalid credentials" });
@@ -671,6 +677,41 @@ namespace Server.Services
 
         #region Helper Methods
 
+        public async Task CreateUser(string username, string password)
+        {
+            try
+            {
+                usersFolders.Add(username, username);
+                var newUser = new User
+                {
+                    Username = username,
+                    Password = _authenticationService.HashPassword(password),
+                    Email = "",
+                    uuid = Guid.NewGuid(),
+                    Role = "sftp user",
+                    RefreshToken = _authenticationService.GenerateRefreshToken(),
+                    RefreshTokenExpiry = DateTime.UtcNow.AddDays(7)
+                };
+                _userService.Users.Add(newUser);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError($"Error creating SFTP user: {e.Message}");
+            }
+        }
+        public async Task DeleteUser(string username)
+        {
+            try
+            {
+                usersFolders.Remove(username);
+                await _userService.DeleteUserAsync(username);
+            }
+            catch(Exception e)
+            {
+                _logger.LogError($"Error deleting SFTP user: {e.Message}");
+            }
+        }
+
         private Dictionary<string, string> ParseQueryString(string query)
         {
             var dict = new Dictionary<string, string>();
@@ -742,7 +783,7 @@ namespace Server.Services
             return false;
         }
 
-        private void SendUnauthorized(HttpListenerResponse response)
+        private async Task SendUnauthorized(HttpListenerResponse response)
         {
             response.StatusCode = 401;
             response.AddHeader("WWW-Authenticate", "Bearer");

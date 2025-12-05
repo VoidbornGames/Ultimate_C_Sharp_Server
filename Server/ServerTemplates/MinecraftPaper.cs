@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using UltimateServer.Models;
 using UltimateServer.Services;
 
-namespace Server.ServerTemplates
+namespace UltimateServer.ServerTemplates
 {
     class MinecraftPaper : IServerTemplate
     {

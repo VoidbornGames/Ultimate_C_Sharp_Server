@@ -157,7 +157,7 @@ namespace UltimateServer.Services
         public async Task<(User user, string message)> AuthenticateUserAsync(LoginRequest request)
         {
             // Check if account is locked
-            if (_authService.IsAccountLocked(request.Username))
+            if (await _authService.IsAccountLocked(request.Username))
             {
                 return (null, "Account is temporarily locked due to multiple failed login attempts");
             }

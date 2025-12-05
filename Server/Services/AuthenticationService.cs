@@ -167,7 +167,7 @@ namespace UltimateServer.Services
         }
 
 
-        public bool IsAccountLocked(string username)
+        public async Task<bool> IsAccountLocked(string username)
         {
             if (_lockedAccounts.TryGetValue(username, out var lockTime))
             {

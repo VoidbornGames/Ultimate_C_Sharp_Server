@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using UltimateServer.Models;
 using UltimateServer.Services; // Assuming Logger is here
 
-namespace Server.Services
+namespace UltimateServer.Services
 {
 
     /// <summary>

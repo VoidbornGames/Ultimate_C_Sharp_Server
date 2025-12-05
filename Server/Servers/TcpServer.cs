@@ -5,8 +5,9 @@ using System.Net.Sockets;
 using System.Text;
 using UltimateServer.Models;
 using static Org.BouncyCastle.Math.EC.ECCurve;
+using UltimateServer.Services;
 
-namespace UltimateServer.Services
+namespace UltimateServer.Servers
 {
     public class TcpServer
     {

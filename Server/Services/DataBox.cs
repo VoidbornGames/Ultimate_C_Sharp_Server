@@ -2,7 +2,7 @@
 using Newtonsoft.Json;
 using UltimateServer.Services;
 
-namespace Server.Services
+namespace UltimateServer.Services
 {
     public class DataBox
     {

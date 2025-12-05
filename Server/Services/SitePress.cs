@@ -1,9 +1,11 @@
 ﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Text;
 using System.Xml.Linq;
+using UltimateServer.Models;
 using UltimateServer.Services;
 
-namespace Server.Services
+namespace UltimateServer.Services
 {
     /// <summary>
     /// Manages website creation, configuration, and deletion on a server.
@@ -14,6 +16,8 @@ namespace Server.Services
         private Logger _logger;
         private Nginx _nginx;
         private SftpServer _sftpServer;
+        private UserService _userService;
+        private AuthenticationService _authenticationService;
 
         private string templateFolder;
 
@@ -33,12 +37,14 @@ namespace Server.Services
         /// <param name="logger">Logger instance for logging operations</param>
         /// <param name="nginx">Nginx service instance for managing web server configurations</param>
         /// <param name="sftpServer">SFTP server instance for managing user accounts</param>
-        public SitePress(Logger logger, Nginx nginx, SftpServer sftpServer)
+        public SitePress(Logger logger, Nginx nginx, SftpServer sftpServer, UserService userService, AuthenticationService authenticationService)
         {
             _logger = logger;
             _nginx = nginx;
             _sftpServer = sftpServer;
             templateFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Template");
+            _userService = userService;
+            _authenticationService = authenticationService;
         }
 
         /// <summary>
@@ -109,11 +115,9 @@ namespace Server.Services
 
                 // 7. SFTP setup
                 var pass = SimplePasswordGenerator.Generate();
-                _sftpServer.usersFolders.Add(name, name);
-                _sftpServer.userCredentials.Add(name, pass);
-                _logger.Log($"SitePress: SFTP user {name} has been created with password: {pass}");
-                await _sftpServer.Save();
+                await _sftpServer.CreateUser(name, pass);
 
+                _logger.Log($"👀 SitePress: SFTP user {name} has been created with password: {pass}");
                 _logger.Log($"✅ Site {name} created successfully with PHP-FPM isolation");
                 return true;
             }
@@ -158,11 +162,7 @@ namespace Server.Services
                 await SaveSites();
 
                 // 5. Remove SFTP user
-                if (_sftpServer.userCredentials.TryGetValue(name, out _))
-                    _sftpServer.userCredentials.Remove(name);
-                if (_sftpServer.usersFolders.TryGetValue(name, out _))
-                    _sftpServer.usersFolders.Remove(name);
-                await _sftpServer.Save();
+                await _sftpServer.DeleteUser(name);
 
                 _logger.Log($"✅ Site {name} deleted successfully");
                 return true;

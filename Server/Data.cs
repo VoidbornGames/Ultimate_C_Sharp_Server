@@ -54,6 +54,9 @@ namespace UltimateServer.Models
         public string email_password { get; set; } = "your-smtp-email-password";
         public bool email_useSsl { get; set; } = false;
         public MiniDBOptions MiniDB_Options { get; set; }
+        public int BackupPerHour { get; set; } = 12;
+        public string BackupFolder { get; set; } = "Backups";
+        public bool BackupSites { get; set; } = false;
     }
 
     public class LoginRequest

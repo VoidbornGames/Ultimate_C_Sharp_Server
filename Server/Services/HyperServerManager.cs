@@ -1,15 +1,16 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using UltimateServer.Models;
-using UltimateServer.Services;
+using UltimateServer.ServerTemplates;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Server.ServerTemplates;
+using System.Xml.Linq;
+using UltimateServer.Models;
+using UltimateServer.Services;
 
-namespace Server.Services
+namespace UltimateServer.Services
 {
     public class HyperServerManager : IDisposable
     {
@@ -22,10 +23,15 @@ namespace Server.Services
         private readonly SftpServer _sftpServer;
         private readonly DataBox _dataBox;
         private readonly ServerConfig _config;
+        private readonly AuthenticationService _authenticationService;
+        private readonly UserService _userService;
+
         private bool _disposed = false;
 
 
-        public HyperServerManager(Logger logger, SftpServer sftpServer, DataBox dataBox, ServerConfig config, IServiceProvider provider)
+        public HyperServerManager(Logger logger, SftpServer sftpServer,
+            DataBox dataBox, ServerConfig config, IServiceProvider provider,
+            AuthenticationService authenticationService, UserService userService)
         {
             _logger = logger;
             _sftpServer = sftpServer;
@@ -36,6 +42,8 @@ namespace Server.Services
             _templates = new List<IServerTemplate>();
 
             _templates.Add(new MinecraftPaper("Minecraft Paper", "/var/UltimateServer/Servers/", "1.20.4", [], provider));
+            _authenticationService = authenticationService;
+            _userService = userService;
         }
 
         public async Task Start()
@@ -179,8 +187,8 @@ namespace Server.Services
 
                 // SFTP setup
                 var pass = SimplePasswordGenerator.Generate();
-                _sftpServer.usersFolders.Add(serverName, serverName);
-                _sftpServer.userCredentials.Add(serverName, pass);
+                await _sftpServer.CreateUser(serverName, pass);
+
                 _logger.Log($"HyperServers: SFTP user {serverName} has been created with password: {pass}");
                 await _sftpServer.Save();
 
@@ -227,8 +235,8 @@ namespace Server.Services
                 await server.UninstallServer();
 
                 // Remove SFTP user
-                _sftpServer.userCredentials.Remove(serverName);
-                _sftpServer.usersFolders.Remove(serverName);
+                await _sftpServer.DeleteUser(serverName);
+
                 await _sftpServer.Save();
 
                 // Remove from servers dictionary

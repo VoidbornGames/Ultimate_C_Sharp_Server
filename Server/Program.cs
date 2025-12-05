@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Server;
-using Server.Servers;
-using Server.ServerTemplates;
-using Server.Services;
+using UltimateServer;
+using UltimateServer.Servers;
+using UltimateServer.ServerTemplates;
+using UltimateServer.Services;
 using UltimateServer.Events;
 using UltimateServer.Models;
 using UltimateServer.Services;
@@ -56,6 +56,7 @@ namespace UltimateServer
             services.AddSingleton<HyperServerManager>();
             services.AddSingleton<MiniDB>();
             services.AddSingleton<DataBackuper>();
+            services.AddSingleton<WebSocketServer>();
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -78,6 +79,7 @@ namespace UltimateServer
             services.AddScoped<HyperServerManager>();
             services.AddScoped<MiniDB>();
             services.AddScoped<DataBackuper>();
+            services.AddScoped<WebSocketServer>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -106,6 +108,7 @@ namespace UltimateServer
             var dataBox = serviceProvider.GetRequiredService<DataBox>();
             var miniDB = serviceProvider.GetRequiredService<MiniDB>();
             var dataBackuper = serviceProvider.GetRequiredService<DataBackuper>();
+            var webSocketServer = serviceProvider.GetRequiredService<WebSocketServer>();
 
             // DataBox and miniDB must be the first one to start becuase many of codes might use it for data saving!
             await miniDB.Start();
@@ -120,6 +123,7 @@ namespace UltimateServer
             await sftpServer.Start();
             await hyperServerManager.Start();
             await dataBackuper.Start();
+            await webSocketServer.Start();
 
             // Load plugins AFTER starting the main servers
             pluginManager._serviceProvider = serviceProvider;
@@ -177,7 +181,7 @@ namespace UltimateServer
                 await sitePress.StopAsync();
                 await sftpServer.StopAsync();
                 await hyperServerManager.StopAsync();
-
+                await webSocketServer.Stop();
 
                 // DataBox and miniDB must be the last one to stop becuase many of codes might use it for data saving!
                 await dataBox.Stop();
