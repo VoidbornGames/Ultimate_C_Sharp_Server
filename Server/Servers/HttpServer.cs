@@ -21,6 +21,7 @@ namespace UltimateServer.Servers
         private readonly CompressionService _compressionService;
         private readonly PluginManager _pluginManager;
         private readonly ConfigManager _configManager;
+        private readonly DownloadJobProcessor _downloadJobProcessor;
         private readonly IServiceProvider _serviceProvider; // Added for DI
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
@@ -51,6 +52,7 @@ namespace UltimateServer.Servers
             _cts = new CancellationTokenSource();
             _configManager = configManager;
             useCompression = configManager.Config.EnableCompression;
+            _downloadJobProcessor = new DownloadJobProcessor(_logger, _pluginManager);
         }
 
         public async Task Start()
@@ -112,7 +114,9 @@ namespace UltimateServer.Servers
             _cts.Cancel();
             _httpListener?.Stop();
             _logger.Log("🌐 HTTP server stopped.");
-            await Task.CompletedTask;
+
+            // Stop the download job processor
+            await _downloadJobProcessor.StopAsync();
         }
 
         private async Task HandleRequestAsync(HttpListenerContext context)
@@ -263,6 +267,20 @@ namespace UltimateServer.Servers
                     case "/api/sites":
                         if (ValidateAdminAuthentication(request))
                             await HandleRequestSitesAsync(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
+                    case "/api/marketplace":
+                        if (ValidateUserAuthentication(request))
+                            await HandleMarketAsync(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
+                    case "/api/marketplace/download":
+                        if (ValidateUserAuthentication(request))
+                            await HandleMarketDownloadAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
@@ -821,6 +839,95 @@ namespace UltimateServer.Servers
             }
         }
 
+        private async Task HandleMarketAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            if (request.HttpMethod != "GET")
+            {
+                response.StatusCode = 405;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only GET allowed" });
+                return;
+            }
+
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    var marketResponse = await client.GetAsync("https://dashboard.voidgames.ir/api/market/plugins");
+                    marketResponse.EnsureSuccessStatusCode();
+
+                    var content = await marketResponse.Content.ReadAsStringAsync();
+                    var marketPlugins = JsonConvert.DeserializeObject<List<MarketPlugin>>(content);
+
+                    foreach (var plugin in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "plugins")))
+                    {
+                        var exited = marketPlugins.FirstOrDefault(p => p.Name == Path.GetFileNameWithoutExtension(plugin), new MarketPlugin() { Name = string.Empty});
+                        if (string.IsNullOrEmpty(exited.Name))
+                            continue;
+
+                        marketPlugins.Remove(exited);
+                    }
+
+                    var responseData = new
+                    {
+                        success = true,
+                        plugins = marketPlugins
+                    };
+
+                    await WriteJsonResponseAsync(response, responseData);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in Marketplace: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "Failed to get products." });
+            }
+        }
+
+        private async Task HandleMarketDownloadAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            // 1. Ensure the request is a POST
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405; // Method Not Allowed
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST method is allowed." });
+                return;
+            }
+
+            try
+            {
+                // 2. Read and deserialize the request body
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var downloadRequest = JsonConvert.DeserializeObject<MarketPlugin>(body);
+
+                // 3. Validate the request data
+                if (downloadRequest == null || string.IsNullOrWhiteSpace(downloadRequest.DownloadLink) || string.IsNullOrWhiteSpace(downloadRequest.Name))
+                {
+                    response.StatusCode = 400; // Bad Request
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Request body must contain a valid 'DownloadLink' and 'Name' property." });
+                    return;
+                }
+
+                // 4. Add the job to the queue instead of processing immediately
+                _downloadJobProcessor.EnqueueJob(downloadRequest);
+
+                // 5. Send a success response back to the client immediately
+                response.StatusCode = 202; // Accepted
+                await WriteJsonResponseAsync(response, new
+                {
+                    success = true,
+                    message = $"Download request for '{downloadRequest.Name}.dll' has been queued and will be processed."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in Marketplace download handler: {ex.Message}");
+                response.StatusCode = 500; // Internal Server Error
+                await WriteJsonResponseAsync(response, new { success = false, message = "An internal error occurred while queuing the download request." });
+            }
+        }
+
         private async Task HandlePluginToggleAsync(HttpListenerRequest request, HttpListenerResponse response, string pluginId, bool enable)
         {
             await WriteJsonResponseAsync(response, new
@@ -844,7 +951,7 @@ namespace UltimateServer.Servers
 
             string token = authHeader.Substring("Bearer ".Length);
             if (_authService.GetRoleFromToken(token).ToLower() == "admin")
-                if (_authService.ValidateJwtToken(token)) 
+                if (_authService.ValidateJwtToken(token))
                     return true;
 
             return false;
@@ -1099,7 +1206,7 @@ namespace UltimateServer.Servers
     /// Holds the HttpListenerResponse for the current asynchronous request context.
     /// This allows plugins to access the response even when they only receive the request.
     /// </summary>
-    public static class HttpContextHolder
+    public class HttpContextHolder
     {
         // AsyncLocal ensures the value is correct even across multiple concurrent async requests.
         private static readonly AsyncLocal<HttpListenerResponse> _currentResponse = new();
@@ -1108,6 +1215,104 @@ namespace UltimateServer.Servers
         {
             get => _currentResponse.Value;
             set => _currentResponse.Value = value;
+        }
+    }
+
+    public class MarketPlugin
+    {
+        public string Name { get; set; } = "plugin";
+        public string Description { get; set; } = "description";
+        public string DownloadLink { get; set; } = "";
+    }
+
+    public class DownloadJobProcessor
+    {
+        private readonly ConcurrentQueue<MarketPlugin> _jobQueue = new ConcurrentQueue<MarketPlugin>();
+        private readonly SemaphoreSlim _signal = new SemaphoreSlim(0);
+        private readonly Logger _logger;
+        private readonly PluginManager _pluginManager;
+        private readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private Task _processingTask;
+
+        public DownloadJobProcessor(Logger logger, PluginManager pluginManager)
+        {
+            _logger = logger;
+            _pluginManager = pluginManager;
+            _processingTask = Task.Run(ProcessJobsAsync);
+        }
+
+        public void EnqueueJob(MarketPlugin downloadRequest)
+        {
+            _jobQueue.Enqueue(downloadRequest);
+            _signal.Release(); // Signal that a new job is available
+        }
+
+        private async Task ProcessJobsAsync()
+        {
+            while (!_cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                await _signal.WaitAsync(_cancellationTokenSource.Token); // Wait for a job
+
+                if (_jobQueue.TryDequeue(out var downloadRequest))
+                {
+                    try
+                    {
+                        await ProcessDownloadJobAsync(downloadRequest);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Error processing download job: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private async Task ProcessDownloadJobAsync(MarketPlugin downloadRequest)
+        {
+            // 1. Define the local path to save the file
+            string pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
+            string fileName = $"{downloadRequest.Name}.dll";
+            string filePath = Path.Combine(pluginsDirectory, fileName);
+
+            // Ensure the "plugins" directory exists
+            Directory.CreateDirectory(pluginsDirectory);
+
+            // 2. Download the file using HttpClient
+            using var client = new HttpClient();
+            var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead);
+
+            // 3. Check if the download was successful
+            if (!downloadResponse.IsSuccessStatusCode)
+            {
+                _logger.LogError($"Failed to download file from URL: {downloadRequest.DownloadLink}. Status: {downloadResponse.StatusCode}");
+                return;
+            }
+
+            // 4. Save the file to the local "plugins" folder
+            using (var contentStream = await downloadResponse.Content.ReadAsStreamAsync())
+            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                await contentStream.CopyToAsync(fileStream);
+            }
+
+            _logger.Log($"Successfully downloaded and saved plugin to: {filePath}");
+            _logger.Log("🔄 Reloading plugins via Marketplace request...");
+
+            // Unload all plugins first
+            await _pluginManager.UnloadAllPluginsAsync();
+
+            // CRITICAL: Add a small delay to allow the OS to release file locks
+            _logger.Log("⏳ Waiting for file locks to be released...");
+            await Task.Delay(1000); // Wait for 1000 milliseconds
+
+            // Load all plugins from the directory
+            await _pluginManager.LoadPluginsAsync(pluginsDirectory);
+        }
+
+        public async Task StopAsync()
+        {
+            _cancellationTokenSource.Cancel();
+            await _processingTask;
         }
     }
 }

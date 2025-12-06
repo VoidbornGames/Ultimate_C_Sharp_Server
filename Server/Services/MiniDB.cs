@@ -463,7 +463,7 @@ namespace UltimateServer.Services
             try
             {
                 await SaveIndexAsync();
-                _logger.Log("📜 Auto-saved database index.");
+                //_logger.Log("📜 Auto-saved database index.");
             }
             catch (Exception ex)
             {
