@@ -9,7 +9,7 @@
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Getting Started</a>
             </div>
             <p><em>Note: Live dashboard login credentials have been changed due to abuse.</em></p>
-            <img src="https://voidgames.ir/archive/usshot.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
+            <img src="https://voidgames.ir/archive/ushot.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
         </div>
 
 <nav class="toc">
