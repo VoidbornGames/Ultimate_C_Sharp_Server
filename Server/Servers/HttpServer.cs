@@ -1166,9 +1166,32 @@ namespace UltimateServer.Servers
         private async Task ServeDefaultPageAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             string htmlPath = Path.Combine(AppContext.BaseDirectory, "index.html");
+            string cssPath = Path.Combine(AppContext.BaseDirectory, "style.css");
+            string jsPath = Path.Combine(AppContext.BaseDirectory, "script.js");
+
             if (File.Exists(htmlPath))
             {
+                // Read the HTML file
                 string html = await File.ReadAllTextAsync(htmlPath);
+
+                // Read the CSS file if it exists
+                if (File.Exists(cssPath))
+                {
+                    string css = await File.ReadAllTextAsync(cssPath);
+                    // Inject the CSS into the HTML within a <style> tag
+                    string styledHtml = html.Replace("</head>", $"<style>\n{css}\n</style>\n</head>");
+                    html = styledHtml;
+                }
+                // Read the JS file if it exists
+                if (File.Exists(cssPath))
+                {
+                    string js = await File.ReadAllTextAsync(jsPath);
+                    // Inject the JS into the HTML within a <script> tag
+                    string funcedHtml = html.Replace("</body>", $"<script>\n{js}\n</script>\n</body>");
+                    html = funcedHtml;
+                }
+
+                // Send the final HTML (now with embedded CSS)
                 byte[] buffer = Encoding.UTF8.GetBytes(html);
                 response.ContentType = "text/html";
                 response.ContentLength64 = buffer.Length;
@@ -1243,28 +1266,51 @@ namespace UltimateServer.Servers
 
         public void EnqueueJob(MarketPlugin downloadRequest)
         {
-            _jobQueue.Enqueue(downloadRequest);
-            _signal.Release(); // Signal that a new job is available
+            // Don't enqueue new jobs if the processor is stopping.
+            if (!_cancellationTokenSource.Token.IsCancellationRequested)
+            {
+                _jobQueue.Enqueue(downloadRequest);
+                _signal.Release(); // Signal that a new job is available
+            }
         }
 
         private async Task ProcessJobsAsync()
         {
-            while (!_cancellationTokenSource.Token.IsCancellationRequested)
+            _logger.Log("Download job processor started.");
+            try
             {
-                await _signal.WaitAsync(_cancellationTokenSource.Token); // Wait for a job
-
-                if (_jobQueue.TryDequeue(out var downloadRequest))
+                while (true) // Loop indefinitely until broken by cancellation
                 {
-                    try
+                    // This line will throw OperationCanceledException when the token is cancelled.
+                    await _signal.WaitAsync(_cancellationTokenSource.Token);
+
+                    // Check for cancellation again in case a job was enqueued just before cancellation.
+                    if (_cancellationTokenSource.Token.IsCancellationRequested)
                     {
-                        await ProcessDownloadJobAsync(downloadRequest);
+                        break;
                     }
-                    catch (Exception ex)
+
+                    if (_jobQueue.TryDequeue(out var downloadRequest))
                     {
-                        _logger.LogError($"Error processing download job: {ex.Message}");
+                        try
+                        {
+                            await ProcessDownloadJobAsync(downloadRequest);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"Error processing download job: {ex.Message}");
+                        }
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // This exception is expected when StopAsync() is called.
+                // It's the signal to exit the processing loop gracefully.
+                // We can just log it and let the method finish.
+                _logger.Log("Download job processor is stopping due to cancellation.");
+            }
+            _logger.Log("Download job processor stopped.");
         }
 
         private async Task ProcessDownloadJobAsync(MarketPlugin downloadRequest)
@@ -1279,7 +1325,8 @@ namespace UltimateServer.Servers
 
             // 2. Download the file using HttpClient
             using var client = new HttpClient();
-            var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead);
+            // Pass the cancellation token to the download operation as well for a more responsive shutdown.
+            var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead, _cancellationTokenSource.Token);
 
             // 3. Check if the download was successful
             if (!downloadResponse.IsSuccessStatusCode)
@@ -1292,7 +1339,7 @@ namespace UltimateServer.Servers
             using (var contentStream = await downloadResponse.Content.ReadAsStreamAsync())
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                await contentStream.CopyToAsync(fileStream);
+                await contentStream.CopyToAsync(fileStream, _cancellationTokenSource.Token);
             }
 
             _logger.Log($"Successfully downloaded and saved plugin to: {filePath}");
@@ -1303,7 +1350,7 @@ namespace UltimateServer.Servers
 
             // CRITICAL: Add a small delay to allow the OS to release file locks
             _logger.Log("⏳ Waiting for file locks to be released...");
-            await Task.Delay(1000); // Wait for 1000 milliseconds
+            await Task.Delay(1000, _cancellationTokenSource.Token); // Pass token here too
 
             // Load all plugins from the directory
             await _pluginManager.LoadPluginsAsync(pluginsDirectory);
@@ -1311,8 +1358,12 @@ namespace UltimateServer.Servers
 
         public async Task StopAsync()
         {
+            _logger.Log("Requesting download job processor to stop...");
             _cancellationTokenSource.Cancel();
+            // The 'await' will now complete without throwing an unhandled exception,
+            // because the exception was caught and handled inside ProcessJobsAsync.
             await _processingTask;
+            _logger.Log("Download job processor has been stopped.");
         }
     }
 }
