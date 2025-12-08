@@ -47,6 +47,8 @@ namespace UltimateServer.Services
         {
             if (File.Exists("sftp.json"))
                 await Load();
+            else
+                usersFolders = new Dictionary<string, string>();
 
             try
             {
@@ -56,6 +58,9 @@ namespace UltimateServer.Services
                 _httpListener.Prefixes.Add(prefix);
                 _httpListener.Start();
                 _logger.Log($"🗃️ SFTP Panel Running on {prefix}");
+
+                if (!usersFolders.ContainsKey("admin"))
+                    usersFolders.Add("admin", "/");
 
                 _ = Task.Run(async () =>
                 {
@@ -465,7 +470,7 @@ namespace UltimateServer.Services
                     }
 
 
-                    if (_authenticationService.VerifyPassword(password, _user.Password) && _user.Role == "sftp user")
+                    if (_authenticationService.VerifyPassword(password, _user.Password) && _user.Role == "sftp user" || _user.Role == "admin")
                     {
                         _authenticationService.ResetFailedLoginAttempts(_user.Username);
                         var token = Guid.NewGuid().ToString("N");

@@ -12,7 +12,7 @@ using UltimateServer.Services;
 
 namespace UltimateServer.Services
 {
-    public class HyperServerManager : IDisposable
+    public class HyperServerManager
     {
 
         private Dictionary<string, IServerTemplate> _servers;
@@ -25,8 +25,6 @@ namespace UltimateServer.Services
         private readonly ServerConfig _config;
         private readonly AuthenticationService _authenticationService;
         private readonly UserService _userService;
-
-        private bool _disposed = false;
 
 
         public HyperServerManager(Logger logger, SftpServer sftpServer,
@@ -41,7 +39,7 @@ namespace UltimateServer.Services
             _servers = new Dictionary<string, IServerTemplate>();
             _templates = new List<IServerTemplate>();
 
-            _templates.Add(new MinecraftPaper("Minecraft Paper", "/var/UltimateServer/Servers/", "1.20.4", [], provider));
+            _templates.Add(new MinecraftPaper("Minecraft Paper", "/var/UltimateServer/Servers/", "1.20.4", [25565], provider));
             _authenticationService = authenticationService;
             _userService = userService;
         }
@@ -130,7 +128,8 @@ namespace UltimateServer.Services
             }
         }
 
-        public async Task<bool> CreateServer(string serverName, string serverVersion,
+        public async Task<bool> CreateServer(
+            string serverName, string serverVersion,
             string serverPath, int[] allowedPorts,
             int maxRamMB, IServerTemplate template)
         {
@@ -317,26 +316,6 @@ namespace UltimateServer.Services
             {
                 _logger.LogError($"Failed to stop server '{serverName}': {e.Message}");
                 return false;
-            }
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
-            {
-                if (disposing)
-                {
-                    // Dispose managed resources
-                    _logger.Log("HyperServerManager disposed");
-                }
-
-                _disposed = true;
             }
         }
     }

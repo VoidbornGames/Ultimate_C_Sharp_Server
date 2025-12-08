@@ -52,7 +52,7 @@ namespace UltimateServer.Servers
         ServerMessage = 7
     }
 
-    internal class UdpServer : IDisposable
+    internal class UdpServer
     {
         private readonly int _port;
         private readonly Logger _logger;
@@ -395,14 +395,6 @@ namespace UltimateServer.Servers
             _cts.Cancel();
             _udpClient?.Close();
             await Task.Delay(100); // Give time for operations to cancel
-        }
-
-        public void Dispose()
-        {
-            _cts?.Cancel();
-            _udpClient?.Close();
-            _udpClient?.Dispose();
-            _cts?.Dispose();
         }
     }
 }

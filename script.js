@@ -106,7 +106,8 @@ async function fetchMarketPlugins() {
     `;
 
     try {
-        const response = await apiRequest('/api/marketplace');
+        // FIX: Use the full absolute URL instead of relative path
+        const response = await apiRequest('https://dashboard.voidgames.ir/api/marketplace');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -156,7 +157,6 @@ async function fetchMarketPlugins() {
 
 
 
-
 window.installMarketPlugin = async function (encodedPlugin) {
     let plugin;
     try {
@@ -202,6 +202,11 @@ window.installMarketPlugin = async function (encodedPlugin) {
         showToast('Installation Failed', `An error occurred: ${error.message}`, 'error');
     }
 };
+
+
+
+
+
 
         async function apiRequest(url, options = {}) {
             const auth = AuthManager.getAuth();

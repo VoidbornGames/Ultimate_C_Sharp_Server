@@ -435,9 +435,8 @@ namespace UltimateServer.Services
         {
             if (!_isIndexDirty) return;
 
-            List<string> lines = _index.Select(kvp =>
-                $"{kvp.Key}|{kvp.Value.Offset}|{kvp.Value.Length}|{kvp.Value.TypeName}|{kvp.Value.LastModified:o}"
-            ).ToList();
+            List<string> lines = _index.Select
+                (kvp => $"{kvp.Key}|{kvp.Value.Offset}|{kvp.Value.Length}|{kvp.Value.TypeName}|{kvp.Value.LastModified:o}").ToList();
 
             await File.WriteAllLinesAsync(_options.IndexFile, lines);
             _isIndexDirty = false;

@@ -272,15 +272,22 @@ namespace UltimateServer.Servers
                         break;
 
                     case "/api/marketplace":
-                        if (ValidateUserAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleMarketAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
 
                     case "/api/marketplace/download":
-                        if (ValidateUserAuthentication(request))
+                        if (ValidateAdminAuthentication(request))
                             await HandleMarketDownloadAsync(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
+                    case "/api/process/list":
+                        if (ValidateAdminAuthentication(request))
+                            await HandleProcessListAsync(request, response);
                         else
                             SendUnauthorized(response);
                         break;
@@ -928,6 +935,20 @@ namespace UltimateServer.Servers
             }
         }
 
+        private async Task HandleProcessListAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            Process[] processes = Process.GetProcesses();
+            var processesData = new
+            {
+                processesName = new List<string>()
+            };
+
+            foreach (var process in processes)
+                processesData.processesName.Add(process.ProcessName);
+
+            await WriteJsonResponseAsync(response, processesData);
+        }
+
         private async Task HandlePluginToggleAsync(HttpListenerRequest request, HttpListenerResponse response, string pluginId, bool enable)
         {
             await WriteJsonResponseAsync(response, new
@@ -950,8 +971,8 @@ namespace UltimateServer.Servers
             }
 
             string token = authHeader.Substring("Bearer ".Length);
-            if (_authService.GetRoleFromToken(token).ToLower() == "admin")
-                if (_authService.ValidateJwtToken(token))
+            if (_authService.ValidateJwtToken(token))
+                if (_authService.GetRoleFromToken(token).ToLower() == "admin")
                     return true;
 
             return false;
@@ -1276,7 +1297,7 @@ namespace UltimateServer.Servers
 
         private async Task ProcessJobsAsync()
         {
-            _logger.Log("Download job processor started.");
+            //_logger.Log("Download job processor started.");
             try
             {
                 while (true) // Loop indefinitely until broken by cancellation
@@ -1298,7 +1319,7 @@ namespace UltimateServer.Servers
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError($"Error processing download job: {ex.Message}");
+                            _logger.LogError($"Error processing market download job: {ex.Message}");
                         }
                     }
                 }
@@ -1308,9 +1329,9 @@ namespace UltimateServer.Servers
                 // This exception is expected when StopAsync() is called.
                 // It's the signal to exit the processing loop gracefully.
                 // We can just log it and let the method finish.
-                _logger.Log("Download job processor is stopping due to cancellation.");
+                //_logger.Log("Download job processor is stopping due to cancellation.");
             }
-            _logger.Log("Download job processor stopped.");
+            //_logger.Log("Download job processor stopped.");
         }
 
         private async Task ProcessDownloadJobAsync(MarketPlugin downloadRequest)
@@ -1358,12 +1379,10 @@ namespace UltimateServer.Servers
 
         public async Task StopAsync()
         {
-            _logger.Log("Requesting download job processor to stop...");
+            //_logger.Log("Requesting download job processor to stop...");
             _cancellationTokenSource.Cancel();
-            // The 'await' will now complete without throwing an unhandled exception,
-            // because the exception was caught and handled inside ProcessJobsAsync.
             await _processingTask;
-            _logger.Log("Download job processor has been stopped.");
+            //_logger.Log("Download job processor has been stopped.");
         }
     }
 }
