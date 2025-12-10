@@ -6,7 +6,8 @@
             <div class="header-links">
                 <a href="https://dashboard.voidgames.ir" target="_blank"><strong>Live Dashboard</strong></a> •
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Documentation</a> •
-                <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Getting Started</a>
+                <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Getting Started</a> •
+                <a href="https://discord.gg/ftffAd37Hx">Discord</a>
             </div>
             <p><em>Note: Live dashboard login credentials have been changed due to abuse.</em></p>
             <img src="https://voidgames.ir/archive/ushot.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
