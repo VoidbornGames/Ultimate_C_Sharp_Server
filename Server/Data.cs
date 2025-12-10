@@ -211,4 +211,9 @@ namespace UltimateServer.Models
         public MiniDBTypeMismatchException(string key, Type requestedType, Type actualType)
             : base($"Type mismatch for key '{key}'. Requested type: {requestedType.Name}, Actual type: {actualType.Name}.") { }
     }
+
+    public class StopProcessRequest
+    {
+        public string ProcessName { get; set; }
+    }
 }

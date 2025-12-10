@@ -204,7 +204,117 @@ window.installMarketPlugin = async function (encodedPlugin) {
 };
 
 
+async function fetchProcess() {
+    const processList = document.getElementById('processList');
+    processList.innerHTML = `
+        <div class="empty-process">
+            <i class="fas fa-download"></i>
+            <h3>Loading Process...</h3>
+            <p>Please wait while we fetch the latest process.</p>
+        </div>
+    `;
 
+    try {
+        // FIX: Corrected the typo from "proccess" to "process"
+        const response = await apiRequest('/api/process/list');
+        
+        // Check if the response is actually JSON
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Server returned non-JSON response. Check if the API endpoint exists.");
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const processes = data.processesName; // Fixed variable name from "proccess" to "processes"
+
+        if (!processes || processes.length === 0) {
+            processList.innerHTML = `
+                <div class="empty-process">
+                    <i class="fas fa-store-slash"></i>
+                    <h3>No Process Available</h3>
+                    <p>The system process list is currently empty. Check back later!</p>
+                </div>
+            `;
+            return;
+        }
+
+        processList.innerHTML = ''; // Clear loading message
+        processes.forEach(processName => {
+            const processCard = document.createElement('div');
+            processCard.className = 'process-card';
+            processCard.innerHTML = `
+                <div class="process-info">
+                    <h4>${processName}</h4>
+                </div>
+                <div class="process-actions">
+                    <button class="kill-btn" onclick="killProcess('${encodeURIComponent(processName)}')">
+                        <i class="fas fa-times-circle"></i> Kill Process
+                    </button>
+                </div>
+            `;
+            processList.appendChild(processCard);
+        });
+
+    } catch (error) {
+        console.error('Error fetching processes:', error);
+        processList.innerHTML = `
+            <div class="process-result error show" style="margin-top: 20px;">
+                <i class="fas fa-exclamation-circle"></i> Failed to load processes. ${error.message}
+            </div>
+        `;
+    }
+}
+
+window.killProcess = async function (encodedProcessName) {
+    let processName;
+    try {
+        // Decode the process name passed from the onclick handler
+        processName = decodeURIComponent(encodedProcessName);
+    } catch (e) {
+        console.error("Failed to parse process name:", e);
+        showToast('Failed to Kill Process', 'Invalid process name.', 'error');
+        return;
+    }
+
+    // Find the button that was clicked to disable it and show loading
+    const killBtn = event.target.closest('.kill-btn');
+    const originalBtnHtml = killBtn.innerHTML;
+    killBtn.disabled = true;
+    killBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Killing...';
+
+    try {
+        // FIX: Corrected the typo from "proccess" to "process"
+        const response = await apiRequest('/api/process/kill', {
+            method: 'POST',
+            body: JSON.stringify({ ProcessName: processName }) // Fixed variable name
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showToast('Process Killed', `Process "${processName}" has been terminated.`, 'success');
+            // Change button to a success state
+            killBtn.innerHTML = '<i class="fas fa-check"></i> Killed';
+            killBtn.style.background = 'var(--text-dim)';
+            killBtn.disabled = true;
+        } else {
+            // Restore button on failure
+            killBtn.disabled = false;
+            killBtn.innerHTML = originalBtnHtml;
+            showToast('Failed to Kill Process', result.message || `Could not kill "${processName}".`, 'error');
+        }
+    } catch (error) {
+        console.error('Error killing process:', error);
+        // Restore button on error
+        killBtn.disabled = false;
+        killBtn.innerHTML = originalBtnHtml;
+        showToast('Failed to Kill Process', `An error occurred: ${error.message}`, 'error');
+    }
+}
 
 
 
@@ -1123,9 +1233,10 @@ window.installMarketPlugin = async function (encodedPlugin) {
                 }
             };
 
-            fetchStats(); fetchSystem(); fetchLogs(); fetchVideos();
+            fetchStats(); fetchSystem(); fetchLogs(); fetchVideos(); fetchProcess();
 
-            setInterval(() => { fetchStats(); fetchSystem(); fetchLogs(); }, 1000);
+            setInterval(() => { fetchStats(); fetchSystem(); fetchLogs();}, 1000);
+            setInterval(() => { fetchProcess();}, 60000);
 
             setInterval(fetchVideos, 5000);
         }

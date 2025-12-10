@@ -5,9 +5,9 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 7.9.x   | :white_check_mark: |
 | 7.8.x   | :white_check_mark: |
-| 7.7.x   | :white_check_mark: |
-| < 7.6.x | :x:                |
+| < 7.7.x | :x:                |
 
 
 ## Supported Ubuntu Versions

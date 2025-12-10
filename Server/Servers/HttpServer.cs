@@ -292,6 +292,13 @@ namespace UltimateServer.Servers
                             SendUnauthorized(response);
                         break;
 
+                    case "/api/process/kill":
+                        if (ValidateAdminAuthentication(request))
+                            await HandleProcessKill(request, response);
+                        else
+                            SendUnauthorized(response);
+                        break;
+
                     default:
                         // Handle plugin enable/disable (placeholder)
                         if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
@@ -940,13 +947,66 @@ namespace UltimateServer.Servers
             Process[] processes = Process.GetProcesses();
             var processesData = new
             {
-                processesName = new List<string>()
+                processesName = processes.Select(p => p.ProcessName).ToList()
             };
 
-            foreach (var process in processes)
-                processesData.processesName.Add(process.ProcessName);
-
             await WriteJsonResponseAsync(response, processesData);
+        }
+
+        private async Task HandleProcessKill(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            // 1. Ensure the request is a POST
+            if (request.HttpMethod != "POST")
+            {
+                response.StatusCode = 405; // Method Not Allowed
+                await WriteJsonResponseAsync(response, new { success = false, message = "Only POST method is allowed." });
+                return;
+            }
+
+            try
+            {
+                // 2. Read and deserialize the request body
+                using var reader = new StreamReader(request.InputStream);
+                string body = await reader.ReadToEndAsync();
+                var processStopRequest = JsonConvert.DeserializeObject<StopProcessRequest>(body);
+
+                // 3. Validate the request data
+                if (processStopRequest == null || string.IsNullOrWhiteSpace(processStopRequest.ProcessName))
+                {
+                    response.StatusCode = 400; // Bad Request
+                    await WriteJsonResponseAsync(response, new { success = false, message = "Request body must contain a valid 'ProcessName' property." });
+                    return;
+                }
+
+                // FIX: Simplified process finding logic
+                var processes = Process.GetProcessesByName(processStopRequest.ProcessName);
+
+                if (!processes.Any())
+                {
+                    response.StatusCode = 404;
+                    await WriteJsonResponseAsync(response, new { success = false, message = $"Process '{processStopRequest.ProcessName}' not found." });
+                    return;
+                }
+
+                // Kill all processes with the given name
+                foreach (var process in processes)
+                {
+                    process.Kill();
+                }
+
+                response.StatusCode = 200;
+                await WriteJsonResponseAsync(response, new
+                {
+                    success = true,
+                    message = $"Process '{processStopRequest.ProcessName}' has been terminated."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error in stopping process: {ex.Message}");
+                response.StatusCode = 500;
+                await WriteJsonResponseAsync(response, new { success = false, message = "An internal error occurred while stopping the process." });
+            }
         }
 
         private async Task HandlePluginToggleAsync(HttpListenerRequest request, HttpListenerResponse response, string pluginId, bool enable)

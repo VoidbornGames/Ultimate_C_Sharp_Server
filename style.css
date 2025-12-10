@@ -1489,3 +1489,115 @@
     transform: none;
     box-shadow: none;
 }
+
+
+/* Process Management Styles */
+.process-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.process-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+    border-color: var(--accent);
+}
+
+.process-info h4 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.process-info p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0;
+}
+
+.process-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.kill-btn {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.kill-btn:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.kill-btn:disabled {
+    background: var(--text-dim);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.empty-process {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-dim);
+}
+
+.empty-process i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: var(--text-dim);
+}
+
+.empty-process h3 {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.empty-process p {
+    margin-bottom: 20px;
+}
+
+.process-result {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: none;
+}
+
+.process-result.success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid var(--success);
+    color: var(--success);
+}
+
+.process-result.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+}
+
+.process-result.show {
+    display: block;
+}
