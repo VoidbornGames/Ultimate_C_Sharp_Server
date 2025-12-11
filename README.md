@@ -163,7 +163,7 @@
 <h2 id="installation">Installation</h2>
         <h3 id="option-1-automated-installation-script">Option 1: Automated Installation Script</h3>
         <p>Run the install script:</p>
-        <pre><code class="language-bash">bash &lt;(curl -s https://raw.githubusercontent.com/VoidbornGames/UltimateServer/main/install.sh)</code></pre>
+        <pre><code class="language-bash">bash &lt;(curl -s https://raw.githubusercontent.com/VoidbornGames/UltimateServer/refs/heads/main/%E2%80%8Einstall.sh%E2%80%8E)</code></pre>
         <h3 id="option-2-manual-installation">Option 2: Manual Installation</h3>
         <ol>
             <li>Clone the repository:
