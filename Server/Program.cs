@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using UltimateServer;
 using UltimateServer.Servers;
-using UltimateServer.ServerTemplates;
 using UltimateServer.Services;
 using UltimateServer.Events;
 using UltimateServer.Models;
@@ -53,7 +52,6 @@ namespace UltimateServer
             services.AddSingleton<SitePress>();
             services.AddSingleton<SftpServer>();
             services.AddSingleton<DataBox>();
-            services.AddSingleton<HyperServerManager>();
             services.AddSingleton<MiniDB>();
             services.AddSingleton<DataBackuper>();
             services.AddSingleton<WebSocketServer>();
@@ -76,7 +74,6 @@ namespace UltimateServer
             services.AddScoped<Nginx>();
             services.AddScoped<SftpServer>();
             services.AddScoped<DataBox>();
-            services.AddScoped<HyperServerManager>();
             services.AddScoped<MiniDB>();
             services.AddScoped<DataBackuper>();
             services.AddScoped<WebSocketServer>();
@@ -104,7 +101,6 @@ namespace UltimateServer
             var udpServer = serviceProvider.GetRequiredService<UdpServer>();
             var sitePress = serviceProvider.GetRequiredService<SitePress>();
             var sftpServer = serviceProvider.GetRequiredService<SftpServer>();
-            var hyperServerManager = serviceProvider.GetRequiredService<HyperServerManager>();
             var dataBox = serviceProvider.GetRequiredService<DataBox>();
             var miniDB = serviceProvider.GetRequiredService<MiniDB>();
             var dataBackuper = serviceProvider.GetRequiredService<DataBackuper>();
@@ -121,7 +117,6 @@ namespace UltimateServer
             await udpServer.Start();
             await sitePress.Start();
             await sftpServer.Start();
-            await hyperServerManager.Start();
             await dataBackuper.Start();
             await webSocketServer.Start();
 
@@ -140,7 +135,6 @@ namespace UltimateServer
                     await userService.SaveUsersAsync();
                     await sitePress.SaveSites();
                     await sftpServer.Save();
-                    await hyperServerManager.Save();
 
                     // DataBox must be the last one to save becuase many of codes might use it for data saving!
                     await dataBox.Save();
@@ -180,7 +174,6 @@ namespace UltimateServer
                 await udpServer.StopAsync();
                 await sitePress.StopAsync();
                 await sftpServer.StopAsync();
-                await hyperServerManager.StopAsync();
                 await webSocketServer.Stop();
 
                 // DataBox and miniDB must be the last one to stop becuase many of codes might use it for data saving!

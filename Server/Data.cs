@@ -175,7 +175,7 @@ namespace UltimateServer.Models
         [Required] [Length(1000, 60000)] public int[] AllowedPorts { get; set; }
         [Required] public int MaxRamMB { get; set; }
         [Required] public string ServerPath { get; set; }
-        [Required] public Process process { get; set; }
+        [Required] public Process Process { get; set; }
 
 
         Task<string> GetConsoleOutput();

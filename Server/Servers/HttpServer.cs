@@ -955,7 +955,7 @@ namespace UltimateServer.Servers
 
         private async Task HandleProcessKill(HttpListenerRequest request, HttpListenerResponse response)
         {
-            // 1. Ensure the request is a POST
+            // Ensure the request is a POST
             if (request.HttpMethod != "POST")
             {
                 response.StatusCode = 405; // Method Not Allowed
@@ -965,12 +965,12 @@ namespace UltimateServer.Servers
 
             try
             {
-                // 2. Read and deserialize the request body
+                // Read and deserialize the request body
                 using var reader = new StreamReader(request.InputStream);
                 string body = await reader.ReadToEndAsync();
                 var processStopRequest = JsonConvert.DeserializeObject<StopProcessRequest>(body);
 
-                // 3. Validate the request data
+                // Validate the request data
                 if (processStopRequest == null || string.IsNullOrWhiteSpace(processStopRequest.ProcessName))
                 {
                     response.StatusCode = 400; // Bad Request
@@ -978,7 +978,7 @@ namespace UltimateServer.Servers
                     return;
                 }
 
-                // FIX: Simplified process finding logic
+                // Simplified process finding logic
                 var processes = Process.GetProcessesByName(processStopRequest.ProcessName);
 
                 if (!processes.Any())

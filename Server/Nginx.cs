@@ -6,7 +6,7 @@ using UltimateServer.Services;
 
 namespace UltimateServer
 {
-    class Nginx
+    public class Nginx
     {
         private ServerConfig config;
 
