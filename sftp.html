@@ -531,7 +531,7 @@
 
         // --- Editor Functions ---
         function isTextFile(fileName) {
-            const textExtensions = ['.txt', '.htaccess', '.webmanifest', '.json', '.xml', '.js', '.html', '.htm', '.css', '.cs', '.cpp', '.h', '.py', '.php', '.sh', '.md', '.yml', '.yaml', '.log', '.sql', '.gitignore', '.env'];
+            const textExtensions = ['.properties', '.txt', '.htaccess', '.webmanifest', '.json', '.xml', '.js', '.html', '.htm', '.css', '.cs', '.cpp', '.h', '.py', '.php', '.sh', '.md', '.yml', '.yaml', '.log', '.sql', '.gitignore', '.env', '.index', '.conf'];
             const ext = '.' + fileName.split('.').pop().toLowerCase();
             return textExtensions.includes(ext);
         }

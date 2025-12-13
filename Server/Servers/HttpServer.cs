@@ -22,6 +22,7 @@ namespace UltimateServer.Servers
         private readonly PluginManager _pluginManager;
         private readonly ConfigManager _configManager;
         private readonly DownloadJobProcessor _downloadJobProcessor;
+        private readonly DDoSProtectionService _ddosProtection;
         private readonly IServiceProvider _serviceProvider; // Added for DI
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
@@ -53,6 +54,15 @@ namespace UltimateServer.Servers
             _configManager = configManager;
             useCompression = configManager.Config.EnableCompression;
             _downloadJobProcessor = new DownloadJobProcessor(_logger, _pluginManager);
+
+            _ddosProtection = new DDoSProtectionService(
+                logger,
+                maxRequestsPerMinute: 240,
+                maxConcurrentConnections: 2,
+                blockDurationMinutes: 3,
+                maxRequestSizeKB: configManager.Config.MaxRequestSizeMB * 1024,
+                maxHeaderSizeKB: configManager.Config.MaxRequestSizeMB
+            );
         }
 
         public async Task Start()
@@ -62,19 +72,58 @@ namespace UltimateServer.Servers
                 _httpListener = new HttpListener();
                 string prefix = $"http://*:{_port}/";
                 _httpListener.Prefixes.Add(prefix);
+
+                // Set connection limits
+                _httpListener.IgnoreWriteExceptions = true;
+
                 _httpListener.Start();
                 _logger.Log($"🌐 HTTP server listening on {prefix}");
+
+                // Track active connections
+                var activeConnections = 0;
+                var maxConnections = _configManager.Config.MaxConnections;
 
                 _ = Task.Run(async () =>
                 {
                     while (!_cts.Token.IsCancellationRequested)
                     {
-                        var context = await _httpListener.GetContextAsync();
-                        _ = HandleRequestAsync(context).ContinueWith(t =>
+                        try
                         {
-                            if (t.Exception != null)
-                                _logger.LogError($"Request handling error: {t.Exception.Message}");
-                        });
+                            // Check connection limit
+                            if (activeConnections >= maxConnections)
+                            {
+                                await Task.Delay(100, _cts.Token);
+                                continue;
+                            }
+
+                            var context = await _httpListener.GetContextAsync();
+                            Interlocked.Increment(ref activeConnections);
+
+                            _ = Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await HandleRequestAsync(context);
+                                }
+                                finally
+                                {
+                                    Interlocked.Decrement(ref activeConnections);
+                                }
+                            }).ContinueWith(t =>
+                            {
+                                if (t.Exception != null)
+                                    _logger.LogError($"Request handling error: {t.Exception.Message}");
+                            });
+                        }
+                        catch (Exception ex) when (_cts.Token.IsCancellationRequested)
+                        {
+                            // Expected during shutdown
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError($"Listener error: {ex.Message}");
+                        }
                     }
                 }, _cts.Token);
 
@@ -135,8 +184,21 @@ namespace UltimateServer.Servers
                 response.Close();
                 return;
             }
-            HttpContextHolder.CurrentResponse = response;
 
+            // DDoS Protection Check
+            if (!_ddosProtection.IsAllowed(request))
+            {
+                response.StatusCode = (int)HttpStatusCode.TooManyRequests;
+                await WriteJsonResponseAsync(response, new
+                {
+                    success = false,
+                    message = "Request blocked due to rate limiting or security policy"
+                });
+                response.Close();
+                return;
+            }
+
+            HttpContextHolder.CurrentResponse = response;
             try
             {
                 // =================================================================
