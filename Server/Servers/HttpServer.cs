@@ -58,10 +58,10 @@ namespace UltimateServer.Servers
             _ddosProtection = new DDoSProtectionService(
                 logger,
                 maxRequestsPerMinute: 240,
-                maxConcurrentConnections: 2,
-                blockDurationMinutes: 3,
+                maxConcurrentConnections: 3,
                 maxRequestSizeKB: configManager.Config.MaxRequestSizeMB * 1024,
-                maxHeaderSizeKB: configManager.Config.MaxRequestSizeMB
+                maxHeaderSizeKB: configManager.Config.MaxRequestSizeMB * 2,
+                blockMinutesBase: 3
             );
         }
 
