@@ -405,6 +405,8 @@ namespace UltimateServer.Servers
             }
             finally
             {
+                _ddosProtection.OnRequestFinished(request);
+
                 // IMPORTANT: Clear the context to prevent memory leaks and ensure
                 // a response from one request doesn't leak into another.
                 HttpContextHolder.CurrentResponse = null;
