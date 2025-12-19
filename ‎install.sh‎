@@ -1,95 +1,144 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# === CONFIG ===
+# ============================================================
+# UltimateServer – Automated Installer
+# Repository: VoidbornGames/UltimateServer
+# Target: Ubuntu 22.04 / 24.04
+# ============================================================
+
+# -------------------------
+# Configuration
+# -------------------------
 REPO="VoidbornGames/UltimateServer"
 INSTALL_DIR="/var/UltimateServer"
 RELEASE_FILE="UltimateServer.zip"
 SERVICE_NAME="ultimateserver"
 SERVER_BINARY="Server"
-DOTNET_ARGS="11001 11002 11003 11004"
+SERVER_ARGS="11001 11002 11003 11004"
 
-echo "==== UltimateServer Auto Installer ===="
+# -------------------------
+# Colors & helpers
+# -------------------------
+RED="\033[1;31m"
+GREEN="\033[1;32m"
+YELLOW="\033[1;33m"
+BLUE="\033[1;34m"
+RESET="\033[0m"
 
-# 1) root check
-if [ "$EUID" -ne 0 ]; then
-  echo "❌ Please run as root (sudo ./install.sh)"
-  exit 1
+log()    { echo -e "${BLUE}[INFO]${RESET} $1"; }
+success(){ echo -e "${GREEN}[OK]${RESET}   $1"; }
+warn()   { echo -e "${YELLOW}[WARN]${RESET} $1"; }
+error()  { echo -e "${RED}[FAIL]${RESET} $1"; exit 1; }
+
+# -------------------------
+# Banner
+# -------------------------
+clear
+echo "============================================================"
+echo "              UltimateServer Auto Installer"
+echo "============================================================"
+echo
+
+# -------------------------
+# 1. Root check
+# -------------------------
+if [[ "$EUID" -ne 0 ]]; then
+  error "Please run as root (sudo ./install.sh)"
 fi
 
-# 2) Update and install dependencies
-echo "[1/6] Updating system packages..."
+success "Running as root"
+
+# -------------------------
+# 2. System dependencies
+# -------------------------
+log "Updating system packages..."
 apt update -y
 
-# NOTE: dotnet-sdk REMOVED (no longer needed)
-apt install -y wget unzip ufw software-properties-common ca-certificates lsb-release apt-transport-https certbot nginx jq
+log "Installing required packages..."
+apt install -y \
+  wget unzip ufw jq \
+  software-properties-common \
+  ca-certificates lsb-release apt-transport-https \
+  certbot nginx
 
-# Add ondrej PHP PPA (unchanged)
-if ! grep -q "^deb .\+ondrej/php" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+# PHP (unchanged, explicitly supported)
+if ! grep -q "^deb .*ondrej/php" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
+  log "Adding PHP repository..."
   add-apt-repository -y ppa:ondrej/php
   apt update -y
 fi
 
-# Install PHP packages (unchanged)
-apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql php8.3-curl php8.3-xml php8.3-mbstring php8.3-zip php8.3-gd php8.3-bcmath
+apt install -y \
+  php8.3 php8.3-cli php8.3-fpm php8.3-mysql \
+  php8.3-curl php8.3-xml php8.3-mbstring \
+  php8.3-zip php8.3-gd php8.3-bcmath
 
-# 3) Create installation directory
-echo "[2/6] Creating installation directory..."
+success "Dependencies installed"
+
+# -------------------------
+# 3. Installation directory
+# -------------------------
+log "Preparing installation directory..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# 4) Fetch latest release
-echo "[3/6] Downloading latest release from GitHub..."
+# -------------------------
+# 4. Download latest release
+# -------------------------
+log "Fetching latest release metadata..."
 API_JSON=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" || true)
 
-LATEST_URL=""
-if command -v jq >/dev/null 2>&1 && [ -n "$API_JSON" ]; then
-  LATEST_URL=$(echo "$API_JSON" | jq -r ".assets[] | select(.name==\"${RELEASE_FILE}\") | .browser_download_url" || true)
+LATEST_URL=$(echo "$API_JSON" | jq -r ".assets[] | select(.name==\"${RELEASE_FILE}\") | .browser_download_url" 2>/dev/null || true)
+
+if [[ -z "$LATEST_URL" || "$LATEST_URL" == "null" ]]; then
+  error "Release asset '${RELEASE_FILE}' not found"
 fi
 
-if [ -z "$LATEST_URL" ] || [ "$LATEST_URL" = "null" ]; then
-  LATEST_URL=$(echo "$API_JSON" | grep "browser_download_url" | grep "${RELEASE_FILE}" | head -n1 | cut -d '"' -f 4 || true)
-fi
+log "Downloading UltimateServer release..."
+wget -qO "$RELEASE_FILE" "$LATEST_URL"
 
-if [ -z "$LATEST_URL" ]; then
-  echo "❌ Could not find ${RELEASE_FILE} in latest release."
-  exit 1
-fi
+[[ -s "$RELEASE_FILE" ]] || error "Downloaded file is empty"
 
-wget -O "${RELEASE_FILE}" "$LATEST_URL"
+success "Release downloaded"
 
-if [ ! -s "${RELEASE_FILE}" ]; then
-  echo "❌ Download failed."
-  exit 1
-fi
+# -------------------------
+# 5. Extract files
+# -------------------------
+log "Extracting files..."
+unzip -o "$RELEASE_FILE" -d "$INSTALL_DIR" >/dev/null
+rm -f "$RELEASE_FILE"
 
-# 5) Extract and clean up
-echo "[4/6] Extracting files..."
-unzip -o "${RELEASE_FILE}" -d "$INSTALL_DIR" >/dev/null
-rm -f "${RELEASE_FILE}"
-
-# Ensure native binary is executable
 chmod +x "${INSTALL_DIR}/${SERVER_BINARY}"
 
-# 6) Configure firewall (unchanged)
-echo "[5/6] Configuring firewall rules..."
+success "Files installed"
+
+# -------------------------
+# 6. Firewall configuration
+# -------------------------
+log "Configuring firewall rules..."
 ufw allow 11001/tcp
 ufw allow 11002
 ufw allow 11003/udp
 ufw allow 11004
-ufw reload || true
+ufw reload || warn "UFW reload skipped"
 
-# 7) Create systemd service (native executable)
-echo "[6/6] Creating systemd service..."
+success "Firewall configured"
 
-cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
+# -------------------------
+# 7. systemd service
+# -------------------------
+log "Creating systemd service..."
+
+cat > "/etc/systemd/system/${SERVICE_NAME}.service" <<EOF
 [Unit]
 Description=UltimateServer
 After=network.target
 
 [Service]
+Type=simple
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/${SERVER_BINARY} ${DOTNET_ARGS}
+ExecStart=${INSTALL_DIR}/${SERVER_BINARY} ${SERVER_ARGS}
 Restart=always
 RestartSec=5
 User=root
@@ -100,12 +149,20 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable --now "${SERVICE_NAME}"
+systemctl enable --now "$SERVICE_NAME"
 
-echo "✅ UltimateServer installation complete!"
-echo "----------------------------------------"
-echo "Installed at: $INSTALL_DIR"
-echo "Service: systemctl status $SERVICE_NAME"
-echo "Binary: ${INSTALL_DIR}/${SERVER_BINARY}"
-echo "Ports: $DOTNET_ARGS"
-echo "----------------------------------------"
+success "Service started and enabled"
+
+# -------------------------
+# Done
+# -------------------------
+echo
+echo "============================================================"
+echo " UltimateServer installation completed successfully"
+echo "------------------------------------------------------------"
+echo " Location : ${INSTALL_DIR}"
+echo " Service  : systemctl status ${SERVICE_NAME}"
+echo " Binary   : ${INSTALL_DIR}/${SERVER_BINARY}"
+echo " Ports    : ${SERVER_ARGS}"
+echo "============================================================"
+echo
