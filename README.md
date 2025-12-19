@@ -185,9 +185,6 @@ sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
                 <pre><code class="language-bash">dotnet build -c Release</code></pre>
             </li>
         </ol>
-        <h3 id="option-3-docker-installation-recommended">Option 3: Docker Installation (Recommended)</h3>
-        <pre><code class="language-bash">docker build -t ultimateserver .
-docker run -p 11001:11001 -p 11002:11002 -p 11003:11003/udp ultimateserver</code></pre>
 
 <h2 id="plugin-development-tutorial">Plugin Development Tutorial</h2>
         <p>UltimateServer's functionality can be easily extended using a powerful plugin system. This tutorial will guide you through creating your first plugin.</p>
