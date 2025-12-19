@@ -96,7 +96,7 @@ if [[ -z "$LATEST_URL" || "$LATEST_URL" == "null" ]]; then
 fi
 
 log "Downloading UltimateServer release..."
-wget -qO "$RELEASE_FILE" "$LATEST_URL"
+wget --show-progress -O "$RELEASE_FILE" "$LATEST_URL"
 
 [[ -s "$RELEASE_FILE" ]] || error "Downloaded file is empty"
 
