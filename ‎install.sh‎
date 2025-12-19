@@ -6,9 +6,10 @@ REPO="VoidbornGames/UltimateServer"
 INSTALL_DIR="/var/UltimateServer"
 RELEASE_FILE="UltimateServer.zip"
 SERVICE_NAME="ultimateserver"
+SERVER_BINARY="Server"
 DOTNET_ARGS="11001 11002 11003 11004"
 
-echo "==== 🧩 UltimateServer Auto Installer ===="
+echo "==== UltimateServer Auto Installer ===="
 
 # 1) root check
 if [ "$EUID" -ne 0 ]; then
@@ -16,20 +17,20 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# 2) Update and install dependencies (keeps your original packages)
+# 2) Update and install dependencies
 echo "[1/6] Updating system packages..."
 apt update -y
 
-# Make add-apt-repository non-interactive and install packages exactly as you had them
-apt install -y wget unzip ufw dotnet-sdk-8.0 software-properties-common ca-certificates lsb-release apt-transport-https certbot nginx jq
+# NOTE: dotnet-sdk REMOVED (no longer needed)
+apt install -y wget unzip ufw software-properties-common ca-certificates lsb-release apt-transport-https certbot nginx jq
 
-# Add ondrej PPA non-interactively
+# Add ondrej PHP PPA (unchanged)
 if ! grep -q "^deb .\+ondrej/php" /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null; then
   add-apt-repository -y ppa:ondrej/php
   apt update -y
 fi
 
-# Install PHP packages as you had them
+# Install PHP packages (unchanged)
 apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-mysql php8.3-curl php8.3-xml php8.3-mbstring php8.3-zip php8.3-gd php8.3-bcmath
 
 # 3) Create installation directory
@@ -37,33 +38,28 @@ echo "[2/6] Creating installation directory..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# 4) Fetch latest release download URL (use jq; fall back to grep if jq fails)
+# 4) Fetch latest release
 echo "[3/6] Downloading latest release from GitHub..."
 API_JSON=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" || true)
 
 LATEST_URL=""
 if command -v jq >/dev/null 2>&1 && [ -n "$API_JSON" ]; then
-  LATEST_URL=$(echo "$API_JSON" | jq -r ".assets[] | select(.name==\"${RELEASE_FILE}\") | .browser_download_url" 2>/dev/null || true)
+  LATEST_URL=$(echo "$API_JSON" | jq -r ".assets[] | select(.name==\"${RELEASE_FILE}\") | .browser_download_url" || true)
 fi
 
-# fallback: simple grep/cut if jq unavailable or parsing failed
 if [ -z "$LATEST_URL" ] || [ "$LATEST_URL" = "null" ]; then
   LATEST_URL=$(echo "$API_JSON" | grep "browser_download_url" | grep "${RELEASE_FILE}" | head -n1 | cut -d '"' -f 4 || true)
 fi
 
-# final sanity: if still empty, try constructing a generic release asset URL (rare) or exit
 if [ -z "$LATEST_URL" ]; then
-  echo "❌ Could not find release file '${RELEASE_FILE}' in the latest release for ${REPO}."
-  echo "Make sure the release asset exists and GitHub API is reachable."
+  echo "❌ Could not find ${RELEASE_FILE} in latest release."
   exit 1
 fi
 
-# Download
 wget -O "${RELEASE_FILE}" "$LATEST_URL"
 
-# verify download
-if [ ! -f "${RELEASE_FILE}" ] || [ ! -s "${RELEASE_FILE}" ]; then
-  echo "❌ Download failed or file is empty."
+if [ ! -s "${RELEASE_FILE}" ]; then
+  echo "❌ Download failed."
   exit 1
 fi
 
@@ -72,7 +68,10 @@ echo "[4/6] Extracting files..."
 unzip -o "${RELEASE_FILE}" -d "$INSTALL_DIR" >/dev/null
 rm -f "${RELEASE_FILE}"
 
-# 6) Configure firewall (kept EXACTLY as you originally had it)
+# Ensure native binary is executable
+chmod +x "${INSTALL_DIR}/${SERVER_BINARY}"
+
+# 6) Configure firewall (unchanged)
 echo "[5/6] Configuring firewall rules..."
 ufw allow 11001/tcp
 ufw allow 11002
@@ -80,10 +79,9 @@ ufw allow 11003/udp
 ufw allow 11004
 ufw reload || true
 
-# 7) Create systemd service and start it (replaces foreground dotnet run)
-echo "[6/6] Creating systemd service (auto-start on boot)..."
+# 7) Create systemd service (native executable)
+echo "[6/6] Creating systemd service..."
 
-# Ensure working directory path is absolute and quoted where expanded
 cat > /etc/systemd/system/${SERVICE_NAME}.service <<EOF
 [Unit]
 Description=UltimateServer
@@ -91,7 +89,7 @@ After=network.target
 
 [Service]
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=/usr/bin/dotnet ${INSTALL_DIR}/Server.dll ${DOTNET_ARGS}
+ExecStart=${INSTALL_DIR}/${SERVER_BINARY} ${DOTNET_ARGS}
 Restart=always
 RestartSec=5
 User=root
@@ -108,5 +106,6 @@ echo "✅ UltimateServer installation complete!"
 echo "----------------------------------------"
 echo "Installed at: $INSTALL_DIR"
 echo "Service: systemctl status $SERVICE_NAME"
+echo "Binary: ${INSTALL_DIR}/${SERVER_BINARY}"
 echo "Ports: $DOTNET_ARGS"
 echo "----------------------------------------"
