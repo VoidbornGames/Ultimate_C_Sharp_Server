@@ -46,7 +46,7 @@ namespace UltimateServer.Services
         /// Creates temporary copies of plugins to enable hot-reloading and isolation.
         /// </summary>
         /// <param name="pluginsDirectory">Directory containing plugin DLLs</param>
-        public async Task LoadPluginsAsync(string pluginsDirectory)
+        public async Task LoadPluginsAsync(string pluginsDirectory = "plugins")
         {
             if (!Directory.Exists(pluginsDirectory))
             {

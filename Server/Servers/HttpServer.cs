@@ -790,7 +790,7 @@ namespace UltimateServer.Servers
                 tempFilePath = null; // Mark as moved, so we don't delete it in the finally block
 
                 // --- Step 4: Load the new plugins ---
-                await _pluginManager.LoadPluginsAsync(pluginsDirectory);
+                await _pluginManager.LoadPluginsAsync();
 
                 _logger.Log("✅ Plugin upload and reload complete.");
                 await WriteJsonResponseAsync(response, new { success = true, message = "Plugin uploaded and reloaded successfully." });
@@ -904,7 +904,7 @@ namespace UltimateServer.Servers
                 await Task.Delay(1000); // Wait for 500 milliseconds
 
                 // 3. Load all plugins from the directory
-                await _pluginManager.LoadPluginsAsync(pluginsDirectory);
+                await _pluginManager.LoadPluginsAsync();
 
                 _logger.Log("✅ Plugin reload complete.");
                 await WriteJsonResponseAsync(response, new { success = true, message = "Plugins reloaded successfully." });
@@ -1498,7 +1498,7 @@ namespace UltimateServer.Servers
             await Task.Delay(1000, _cancellationTokenSource.Token); // Pass token here too
 
             // Load all plugins from the directory
-            await _pluginManager.LoadPluginsAsync(pluginsDirectory);
+            await _pluginManager.LoadPluginsAsync();
         }
 
         public async Task StopAsync()

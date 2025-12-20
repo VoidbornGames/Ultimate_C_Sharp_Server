@@ -55,6 +55,10 @@ namespace UltimateServer
             services.AddSingleton<MiniDB>();
             services.AddSingleton<DataBackuper>();
             services.AddSingleton<WebSocketServer>();
+            services.AddSingleton<UserService>();
+            services.AddSingleton<HttpServer>();
+            services.AddSingleton<TcpServer>();
+            services.AddSingleton<UdpServer>();
 
             // --- REGISTER SCOPED SERVICES ---
             services.AddScoped<AuthenticationService>(provider =>
@@ -64,19 +68,9 @@ namespace UltimateServer
                     provider.GetRequiredService<Logger>()));
 
             services.AddScoped<ValidationService>();
-            services.AddScoped<UserService>();
             services.AddScoped<VideoService>();
             services.AddScoped<CommandHandler>();
-            services.AddScoped<HttpServer>(); // HttpServer needs the PluginManager so add it after PluginManager
-            services.AddScoped<TcpServer>();
-            services.AddScoped<UdpServer>();
-            services.AddScoped<SitePress>();
             services.AddScoped<Nginx>();
-            services.AddScoped<SftpServer>();
-            services.AddScoped<DataBox>();
-            services.AddScoped<MiniDB>();
-            services.AddScoped<DataBackuper>();
-            services.AddScoped<WebSocketServer>();
 
             var serviceProvider = services.BuildServiceProvider();
 
@@ -121,8 +115,9 @@ namespace UltimateServer
             await webSocketServer.Start();
 
             // Load plugins AFTER starting the main servers
+            Directory.Delete(Path.Combine("plugins", ".plugin_temp"), true);
             pluginManager._serviceProvider = serviceProvider;
-            await pluginManager.LoadPluginsAsync("plugins");
+            await pluginManager.LoadPluginsAsync();
 
             // Start the auto save proccess
             _ = Task.Run(async () =>
@@ -155,43 +150,70 @@ namespace UltimateServer
             // Tell the user that the server started successfully
             logger.Log($"🚀 Server started successfully!");
 
-            // Stop evrything correctly on shoutdown
-            Console.CancelKeyPress += async (s, e) =>
-            {
-                // Cancel the default shoutdown event
-                e.Cancel = true;
 
-                // Run our own shoutdown
+            /// Stop everything correctly on shoutdown
+            // Handle SIGINT (Ctrl+C)
+            AppDomain.CurrentDomain.ProcessExit += (s, e) => {
+                // We must block here until shutdown is complete.
+                // .GetAwaiter().GetResult() is a safe way to do this in a non-async context.
+                ShutdownApplication(serviceProvider, logger, cts).GetAwaiter().GetResult();
+            };
+
+            // Handle SIGINT (Ctrl+C) for when running in a terminal
+            Console.CancelKeyPress += (s, e) => {
+                e.Cancel = true; // Prevent the process from exiting immediately
+                                 // We must block here until shutdown is complete.
+                ShutdownApplication(serviceProvider, logger, cts).GetAwaiter().GetResult();
+            };
+
+            // --- ShutdownApplication method ---
+            static async Task ShutdownApplication(ServiceProvider serviceProvider, Logger logger, CancellationTokenSource cts)
+            {
+                if (cts.IsCancellationRequested) return;
+
                 cts.Cancel();
                 logger.Log("🛑 Shutdown requested...");
 
                 logger.Log("💾 Saving final data...");
+                var userService = serviceProvider.GetRequiredService<UserService>();
                 await userService.SaveUsersAsync();
 
+                var sitePress = serviceProvider.GetRequiredService<SitePress>();
+                await sitePress.SaveSites();
+
+                var sftpServer = serviceProvider.GetRequiredService<SftpServer>();
+                await sftpServer.Save();
+
                 logger.Log("🛑 Stopping servers...");
+                var httpServer = serviceProvider.GetRequiredService<HttpServer>();
+                var tcpServer = serviceProvider.GetRequiredService<TcpServer>();
+                var udpServer = serviceProvider.GetRequiredService<UdpServer>();
+                var sitePressService = serviceProvider.GetRequiredService<SitePress>();
+                var sftpServerService = serviceProvider.GetRequiredService<SftpServer>();
+                var webSocketServer = serviceProvider.GetRequiredService<WebSocketServer>();
+                var dataBox = serviceProvider.GetRequiredService<DataBox>();
+                var miniDB = serviceProvider.GetRequiredService<MiniDB>();
+
                 await httpServer.StopAsync();
                 await tcpServer.StopAsync();
                 await udpServer.StopAsync();
-                await sitePress.StopAsync();
-                await sftpServer.StopAsync();
+                await sitePressService.StopAsync();
+                await sftpServerService.StopAsync();
                 await webSocketServer.Stop();
 
-                // DataBox and miniDB must be the last one to stop becuase many of codes might use it for data saving!
+                // DataBox and miniDB must be the last one to stop because many of codes might use it for data saving!
                 await dataBox.Stop();
                 await miniDB.Stop();
 
-                // A 300ms delay to be sure everything has been saved.
-                await Task.Delay(300);
-                Environment.Exit(0);
-            };
+                logger.Log("✅ Shutdown complete.");
+                // No need for Environment.Exit(0) here, the process will terminate naturally after the handler exits.
+            }
 
-
+            // Use the Default for building the project so there will be no need of .Net to run the app!
+            // Default build command: dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishTrimmed=true -p:TrimMode=partial -p:InvariantGlobalization=true -p:DebugType=None -p:DebugSymbols=false -p:EnableDiagnostics=false -p:PublishReadyToRun=false -p:TieredCompilation=false -p:EventSourceSupport=false -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=false
 
             // Just an infinite delay so the server wont stop as soon as it starts
             await Task.Delay(Timeout.Infinite);
-
-
-            // TODO: Finish the HyperServerManager panel and add it to the main panel.
         }
     }
 }

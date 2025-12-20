@@ -98,7 +98,7 @@ namespace UltimateServer.Servers
                 else
                 {
                     ctx.Response.StatusCode = 400;
-                    byte[] msg = Encoding.UTF8.GetBytes("This endpoint only accepts WebSocket connections.\n");
+                    byte[] msg = Encoding.UTF8.GetBytes("<html><head><style>body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);color:white;}</style></head><body>This endpoint only accepts WebSocket connections.</body></html>");
                     ctx.Response.OutputStream.Write(msg, 0, msg.Length);
                     ctx.Response.Close();
                 }
