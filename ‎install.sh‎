@@ -139,9 +139,7 @@ After=network.target
 Type=simple
 WorkingDirectory=/var/UltimateServer
 ExecStart=/var/UltimateServer/Server 11001 11002 11003 11004
-# This tells systemd to send SIGINT first, which your app handles gracefully
 KillSignal=SIGINT 
-# Give our application 60 seconds to shut down gracefully before systemd kills it
 TimeoutStopSec=60 
 Restart=always
 RestartSec=5
