@@ -154,15 +154,12 @@ namespace UltimateServer
             /// Stop everything correctly on shoutdown
             // Handle SIGINT (Ctrl+C)
             AppDomain.CurrentDomain.ProcessExit += (s, e) => {
-                // We must block here until shutdown is complete.
-                // .GetAwaiter().GetResult() is a safe way to do this in a non-async context.
                 ShutdownApplication(serviceProvider, logger, cts).GetAwaiter().GetResult();
             };
 
             // Handle SIGINT (Ctrl+C) for when running in a terminal
             Console.CancelKeyPress += (s, e) => {
-                e.Cancel = true; // Prevent the process from exiting immediately
-                                 // We must block here until shutdown is complete.
+                e.Cancel = true;
                 ShutdownApplication(serviceProvider, logger, cts).GetAwaiter().GetResult();
             };
 
@@ -206,7 +203,6 @@ namespace UltimateServer
                 await miniDB.Stop();
 
                 logger.Log("✅ Shutdown complete.");
-                // No need for Environment.Exit(0) here, the process will terminate naturally after the handler exits.
             }
 
             // Use the Default for building the project so there will be no need of .Net to run the app!
