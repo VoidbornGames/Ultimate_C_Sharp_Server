@@ -42,6 +42,8 @@
 |   22.04   | :white_check_mark: |
 | < 22.04   | :x:                |
 
+- #### Note: All debian based linux distros are supported, but not officialy tested. UltimateServer works on all linux distros but the site creating feature might dont work!
+
 <h2 id="features">Features</h2>
         <div class="feature-list">
             <div class="feature-card">
