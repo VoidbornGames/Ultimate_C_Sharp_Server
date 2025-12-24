@@ -1,8 +1,9 @@
+# UltimateServer ![Version](https://img.shields.io/badge/version-7.13.7-blue) ![Coverage](https://img.shields.io/badge/coverage-95%25-blue)
+A powerful, multi-purpose C# server built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.
+
 <main class="container">
 <div class="header">
             <img src="https://github.com/VoidbornGames/UltimateServer/blob/main/Ultimate%20Server%20Logo.png" alt="UltimateServer Logo">
-            <h1 id="ultimateserver">UltimateServer</h1>
-            <p>A powerful, multi-purpose <strong>C# server</strong> built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.</p>
             <div class="header-links">
                 <a href="https://dashboard.voidgames.ir" target="_blank"><strong>Live Dashboard</strong></a> •
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Documentation</a> •
@@ -10,7 +11,7 @@
                 <a href="https://discord.gg/ftffAd37Hx">Discord</a>
             </div>
             <p><em>Note: Live dashboard login credentials have been changed due to abuse.</em></p>
-            <img src="https://voidgames.ir/archive/usshot.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
+            <img src="https://github.com/VoidbornGames/UltimateServer/blob/main/Preview.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
         </div>
 <nav class="toc">
             <h2 id="table-of-contents">Table of Contents</h2>
