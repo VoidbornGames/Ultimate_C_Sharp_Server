@@ -1,12 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System;
+﻿using Newtonsoft.Json;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace UltimateServer.Services
 {
@@ -14,7 +7,7 @@ namespace UltimateServer.Services
     {
         public string SaveFile { get; set; } = "server.data";
         public bool AutoSave { get; set; } = true;
-        public int AutoSaveIntervalMs { get; set; } = 30000; // 30 seconds
+        public int AutoSaveIntervalMs { get; set; } = 30000;
         public int MaxBackupFiles { get; set; } = 5;
         public bool EnableCompression { get; set; } = false;
     }
@@ -141,7 +134,6 @@ namespace UltimateServer.Services
 
                 if (_options.AutoSave)
                 {
-                    // Trigger save in background without awaiting
                     _ = Task.Run(async () => await Save());
                 }
 
@@ -192,7 +184,6 @@ namespace UltimateServer.Services
 
             try
             {
-                // Try to get from memory first
                 if (_data.TryGetValue(key, out object value))
                 {
                     if (value is T directValue)
@@ -202,7 +193,6 @@ namespace UltimateServer.Services
                     return JsonConvert.DeserializeObject<T>(json);
                 }
 
-                // If not found in memory, reload from file
                 await LoadAsync();
 
                 if (_data.TryGetValue(key, out value))
@@ -242,7 +232,6 @@ namespace UltimateServer.Services
 
                 if (removed && _options.AutoSave)
                 {
-                    // Trigger save in background without awaiting
                     _ = Task.Run(async () => await Save());
                 }
 
@@ -301,7 +290,6 @@ namespace UltimateServer.Services
 
             if (_options.AutoSave)
             {
-                // Trigger save in background without awaiting
                 _ = Save();
             }
         }
@@ -328,12 +316,10 @@ namespace UltimateServer.Services
             _autoSaveTimer?.Dispose();
             _saveSemaphore?.Dispose();
 
-            // Save one last time
             _ = Task.Run(async () => await Save());
         }
     }
 
-    // Extension method for File.Copy async
     public static class FileExtensions
     {
         public static Task CopyAsync(string sourceFileName, string destFileName, bool overwrite)

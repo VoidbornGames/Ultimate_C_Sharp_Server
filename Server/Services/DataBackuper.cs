@@ -60,7 +60,6 @@ namespace UltimateServer.Services
 
         private async Task BackupServer()
         {
-            // Clear the site directories list before populating it
             _siteDirectories.Clear();
 
             if (_backupSites)
@@ -79,7 +78,6 @@ namespace UltimateServer.Services
                 }
             }
 
-            // --- Start the compression process ---
             try
             {
                 if (!Directory.Exists(_backupPath)) Directory.CreateDirectory(_backupPath);
@@ -87,24 +85,17 @@ namespace UltimateServer.Services
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
                 var destinationZipFilePath = Path.Combine(_backupPath, $"Backup_{timestamp}.zip");
 
-                // 1. CREATE THE ZIP FILE AND STREAM
-                // The 'using' statements ensure that resources are properly closed and disposed.
                 using (FileStream zipToCreate = new FileStream(destinationZipFilePath, FileMode.Create))
                 using (ZipArchive archive = new ZipArchive(zipToCreate, ZipArchiveMode.Create))
                 {
-                    // 2. ADD INDIVIDUAL FILES TO THE ZIP
                     foreach (string fileToAdd in _serverFiles)
                     {
-                        // Check if the file actually exists before trying to add it
                         if (File.Exists(fileToAdd))
                         {
-                            // Get just the filename (e.g., "report.docx") to use inside the zip
                             string entryName = Path.GetFileName(fileToAdd);
 
-                            // 3. CREATE AN ENTRY FOR THE FILE IN THE ZIP ARCHIVE
                             ZipArchiveEntry zipEntry = archive.CreateEntry(entryName);
 
-                            // 4. COPY THE FILE'S CONTENTS INTO THE ZIP ENTRY
                             using (FileStream fileStream = new FileStream(fileToAdd, FileMode.Open, FileAccess.Read))
                             using (Stream entryStream = zipEntry.Open())
                             {
@@ -117,7 +108,6 @@ namespace UltimateServer.Services
                         }
                     }
 
-                    // 5. ADD SITE DIRECTORIES TO THE ZIP
                     foreach (string directoryToAdd in _siteDirectories)
                     {
                         AddDirectoryToZip(archive, directoryToAdd, Path.GetFileName(directoryToAdd));
@@ -136,10 +126,8 @@ namespace UltimateServer.Services
         {
             try
             {
-                // Add the directory itself
                 ZipArchiveEntry directoryEntry = archive.CreateEntry(entryName + "/");
 
-                // Add all files in this directory
                 foreach (string file in Directory.GetFiles(sourceDirectoryName))
                 {
                     string relativePath = Path.Combine(entryName, Path.GetFileName(file));
@@ -152,7 +140,6 @@ namespace UltimateServer.Services
                     }
                 }
 
-                // Recursively add subdirectories
                 foreach (string directory in Directory.GetDirectories(sourceDirectoryName))
                 {
                     string dirName = Path.GetFileName(directory);

@@ -21,9 +21,8 @@ namespace UltimateServer.Services
 
         public List<User> Users { get; private set; }
 
-        // UPDATED CONSTRUCTOR: Accept FilePaths instead of a string
         public UserService(
-            FilePaths filePaths, // <-- Changed from string usersFile
+            FilePaths filePaths,
             Logger logger,
             AuthenticationService authService,
             ValidationService validationService,
@@ -32,7 +31,7 @@ namespace UltimateServer.Services
             EmailService emailService,
             ConfigManager configManager)
         {
-            _usersFile = filePaths.UsersFile; // <-- Get the path from the object
+            _usersFile = filePaths.UsersFile;
             _logger = logger;
             _authService = authService;
             _validationService = validationService;
@@ -47,7 +46,6 @@ namespace UltimateServer.Services
         {
             try
             {
-                // Try to get from cache first
                 var cachedUsers = _cacheService.Get<List<User>>("users");
                 if (cachedUsers != null)
                 {
@@ -64,7 +62,6 @@ namespace UltimateServer.Services
                 else
                 {
                     Users = new List<User>();
-                    // Create default admin user
                     Users.Add(new User
                     {
                         Username = "admin",
@@ -77,7 +74,6 @@ namespace UltimateServer.Services
                     _logger.Log("✅ Created default admin user (username: admin, password: admin123)");
                 }
 
-                // Cache the users
                 _cacheService.Set("users", Users, TimeSpan.FromMinutes(30));
                 _logger.Log($"✅ Loaded {Users.Count} users.");
             }
@@ -95,7 +91,6 @@ namespace UltimateServer.Services
                 string json = JsonConvert.SerializeObject(Users, Formatting.Indented);
                 await File.WriteAllTextAsync(_usersFile, json);
 
-                // Update cache
                 _cacheService.Set("users", Users, TimeSpan.FromMinutes(30));
 
                 // _logger.Log("💾 Users saved.");
@@ -108,14 +103,12 @@ namespace UltimateServer.Services
 
         public async Task<(User user, string message)> CreateUserAsync(RegisterRequest request)
         {
-            // Validate input
             var (isValid, errors) = _validationService.ValidateModel(request);
             if (!isValid)
             {
                 return (null, string.Join(", ", errors));
             }
 
-            // Check if user already exists
             if (Users.Any(u => u.Username.Equals(request.Username, StringComparison.OrdinalIgnoreCase)))
             {
                 return (null, "Username already exists");
@@ -145,7 +138,6 @@ namespace UltimateServer.Services
             var createdUser = Users.FirstOrDefault(u => u.Username == request.Username);
             _logger.Log($"✅ User created: {request.Username}");
 
-            // NEW: Publish the UserRegisteredEvent to the event bus
             if (createdUser != null)
             {
                 await _eventBus.PublishAsync(new UserRegisteredEvent(createdUser));
@@ -156,7 +148,6 @@ namespace UltimateServer.Services
 
         public async Task<(User user, string message)> AuthenticateUserAsync(LoginRequest request)
         {
-            // Check if account is locked
             if (await _authService.IsAccountLocked(request.Username))
             {
                 return (null, "Account is temporarily locked due to multiple failed login attempts");
@@ -172,13 +163,10 @@ namespace UltimateServer.Services
 
             if (_authService.VerifyPassword(request.Password, user.Password))
             {
-                // Reset failed login attempts on successful login
                 _authService.ResetFailedLoginAttempts(request.Username);
 
-                // Update last login
                 user.LastLogin = DateTime.UtcNow;
 
-                // Generate new refresh token if needed or if remember me is checked
                 if (request.RememberMe || string.IsNullOrEmpty(user.RefreshToken) || user.RefreshTokenExpiry <= DateTime.UtcNow)
                 {
                     user.RefreshToken = _authService.GenerateRefreshToken();
@@ -210,7 +198,6 @@ namespace UltimateServer.Services
                 return (null, "Refresh token expired");
             }
 
-            // Generate new refresh token
             user.RefreshToken = _authService.GenerateRefreshToken();
             user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
 
@@ -245,38 +232,29 @@ namespace UltimateServer.Services
             return (true, "Password changed successfully");
         }
 
-        // This method now ONLY handles the initial request
         public async Task<(bool success, string message)> ResetPasswordAsync(string email)
         {
             var user = Users.FirstOrDefault(u => u.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
             if (user == null)
             {
-                // Don't reveal that the email doesn't exist for security reasons
                 return (true, "If the email exists, a password reset link has been sent.");
             }
 
-            // 1. Generate a secure token
             var resetToken = _authService.GenerateResetToken();
 
-            // 2. Save the token and its expiry to the user's record
             user.PasswordResetToken = resetToken;
-            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1); // Token is valid for 1 hour
+            user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
 
-            // IMPORTANT: You must save these changes to your database!
-            // await _context.SaveChangesAsync(); // If you're using Entity Framework
+            // await _context.SaveChangesAsync();
 
-            // 3. Create the reset link
-            // This should point to the URL of your password reset page
             var resetLink = $"https://{_serverConfig.PanelDomain}/reset-password?token={Uri.EscapeDataString(resetToken)}&email={Uri.EscapeDataString(user.Email)}";
 
-            // 4. Update your email template to use the link
             var emailBody = _emailService.verifyCodeEmail
                 .Replace("%User_Name%", user.Username)
                 .Replace("%Username%", user.Username)
                 .Replace("%Reset_Link%", resetLink);
 
-            // 5. Send the email
             await _emailService.SendAsync(user.Email, "Reset Your Password", emailBody, true);
 
             _logger.LogSecurity($"🔑 Password reset token for {user.Email} is: {resetToken}");
@@ -286,33 +264,27 @@ namespace UltimateServer.Services
 
         public async Task<(bool success, string message)> ConfirmPasswordResetAsync(ChangePasswordRequest request)
         {
-            // 1. Find the user by their email address and token for security.
             var user = Users.FirstOrDefault(u =>
             u.Email.Equals(request.Email, StringComparison.OrdinalIgnoreCase) &&
             u.PasswordResetToken.Equals(request.Token, StringComparison.OrdinalIgnoreCase)
             );
-            // If the user doesn't exist or the token doesn't match, fail.
             if (user == null)
             {
                 return (false, "Invalid email or reset token.");
             }
-            // 2. Validate the token expiry.
             if (!_authService.ValidatePasswordResetToken(user, request.Token))
             {
                 return (false, "Invalid or expired reset token.");
             }
-            // 3. Validate the new password's strength.
             if (!_validationService.IsStrongPassword(request.NewPassword))
             {
                 return (false, "New password does not meet security requirements.");
             }
-            // 4. Hash the new password.
             string newPasswordHash = _authService.HashPassword(request.NewPassword);
-            // 5. Update the user's password and invalidate the token.
             user.Password = newPasswordHash;
-            user.PasswordResetToken = null; // Invalidate the token
-            user.PasswordResetTokenExpiry = DateTime.MinValue; // Invalidate the expiry
-                                                               // 6. Save the changes to the database.
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiry = DateTime.MinValue; 
+                                                            
             await SaveUsersAsync();
             _logger.Log($"✅ Password reset successfully for user: {user.Email}");
             return (true, "Your password has been reset successfully. You can now log in.");
@@ -327,7 +299,6 @@ namespace UltimateServer.Services
                 return (false, "User not found");
             }
 
-            // Validate email if it's being changed
             if (!string.IsNullOrEmpty(updatedUser.Email) &&
                 updatedUser.Email != user.Email &&
                 Users.Any(u => u.Email.Equals(updatedUser.Email, StringComparison.OrdinalIgnoreCase)))
@@ -335,7 +306,6 @@ namespace UltimateServer.Services
                 return (false, "Email already exists");
             }
 
-            // Update allowed fields
             if (!string.IsNullOrEmpty(updatedUser.Email))
             {
                 user.Email = updatedUser.Email;
@@ -394,7 +364,6 @@ namespace UltimateServer.Services
                 return (false, "User not found");
             }
 
-            // Invalidate refresh token
             user.RefreshToken = "";
             user.RefreshTokenExpiry = DateTime.UtcNow;
 
@@ -412,7 +381,6 @@ namespace UltimateServer.Services
                 return (false, "User not found");
             }
 
-            // Generate 2FA secret (in a real implementation, you would use a library like Google.Authenticator)
             user.TwoFactorSecret = Guid.NewGuid().ToString();
             user.TwoFactorEnabled = true;
 
@@ -452,8 +420,6 @@ namespace UltimateServer.Services
                 return (false, "Two-factor authentication is not enabled");
             }
 
-            // In a real implementation, you would verify the code against the secret
-            // For this example, we'll just check if the code is "123456"
             if (code != "123456")
             {
                 return (false, "Invalid verification code");
@@ -479,7 +445,6 @@ namespace UltimateServer.Services
 
             if (user.Role == "admin" && newRole != "admin")
             {
-                // Check if there are other admin users
                 var adminCount = Users.Count(u => u.Role == "admin");
                 if (adminCount <= 1)
                 {
@@ -522,7 +487,6 @@ namespace UltimateServer.Services
             user.LockedUntil = null;
             user.FailedLoginAttempts = 0;
 
-            // Also reset in the authentication service
             _authService.ResetFailedLoginAttempts(username);
 
             await SaveUsersAsync();

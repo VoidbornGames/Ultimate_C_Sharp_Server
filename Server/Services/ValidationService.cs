@@ -132,7 +132,6 @@ namespace UltimateServer.Services
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
 
-            // Basic HTML sanitization
             return Regex.Replace(input, "<.*?>", string.Empty);
         }
     }

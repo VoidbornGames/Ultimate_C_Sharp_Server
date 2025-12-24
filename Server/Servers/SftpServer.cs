@@ -31,7 +31,6 @@ namespace UltimateServer.Services
             _port = serverSettings.sftpPort;
             _logger = logger;
             _authenticationService = authenticationService;
-            // No longer need to inject UserService
             _cts = new CancellationTokenSource();
             _userService = userService;
             _serverConfig = configManager.Config;
@@ -195,7 +194,6 @@ namespace UltimateServer.Services
                             await SendUnauthorized(response);
                         break;
 
-                    // NEW: Rename endpoint
                     case "/api/files/rename":
                         if (ValidateAuthentication(request))
                             await HandleFileRenameAsync(request, response);
@@ -223,7 +221,6 @@ namespace UltimateServer.Services
 
         #region API Endpoint Handlers
 
-        // NEW: Handler for file/directory renaming
         private async Task HandleFileRenameAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             if (request.HttpMethod != "POST")
@@ -265,7 +262,6 @@ namespace UltimateServer.Services
                 var directory = Path.GetDirectoryName(fullPath);
                 var newPath = Path.Combine(directory, newName);
 
-                // Check if the new name already exists
                 if ((isDirectory && Directory.Exists(newPath)) || (!isDirectory && File.Exists(newPath)))
                 {
                     response.StatusCode = 409;
@@ -294,7 +290,6 @@ namespace UltimateServer.Services
             }
         }
 
-        // MODIFIED: Handler for file/folder creation to handle both
         private async Task HandleFileCreateAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
             if (request.HttpMethod != "POST")
@@ -306,11 +301,9 @@ namespace UltimateServer.Services
 
             try
             {
-                // Check if it's a query parameter (for backward compatibility with folder creation)
                 var queryParams = ParseQueryString(request.Url.Query);
                 string pathParam = queryParams.GetValueOrDefault("path");
 
-                // If not in query parameters, try to get from request body
                 if (string.IsNullOrEmpty(pathParam))
                 {
                     using var reader = new StreamReader(request.InputStream);
@@ -326,7 +319,6 @@ namespace UltimateServer.Services
 
                     pathParam = pathObj.ToString();
 
-                    // Check if isDirectory parameter is provided
                     bool isDirectory = false;
                     if (data.TryGetValue("isDirectory", out var isDirObj))
                     {
@@ -348,7 +340,6 @@ namespace UltimateServer.Services
                     }
                     else
                     {
-                        // Create an empty file
                         await File.WriteAllTextAsync(fullPath, string.Empty);
                     }
 
@@ -356,7 +347,6 @@ namespace UltimateServer.Services
                 }
                 else
                 {
-                    // Backward compatibility for folder creation via query parameter
                     var fullPath = ResolvePath(pathParam, GetTokenFromRequest(request));
 
                     if (fullPath == null)
@@ -411,7 +401,6 @@ namespace UltimateServer.Services
                     return;
                 }
 
-                // Ensure the directory exists before writing the file
                 var directory = Path.GetDirectoryName(fullPath);
                 if (!string.IsNullOrEmpty(directory))
                 {
@@ -450,7 +439,6 @@ namespace UltimateServer.Services
                     loginRequest.TryGetValue("Username", out var username) &&
                     loginRequest.TryGetValue("Password", out var password))
                 {
-                    // Check against the simple credentials dictionary
                     var _user = _userService.Users.FirstOrDefault(u => u.Username == username, new User() { Username = "Invalid User" });
                     if(_user.Username == "Invalid User")
                     {
@@ -473,8 +461,7 @@ namespace UltimateServer.Services
                         var token = Guid.NewGuid().ToString("N");
                         Sessions[token] = (DateTime.UtcNow.AddHours(2), username);
 
-                        // Get the user's specific path from the dictionary
-                        var userPathSuffix = usersFolders.GetValueOrDefault(username, username); // Fallback to username if not in map
+                        var userPathSuffix = usersFolders.GetValueOrDefault(username, username);
                         var userRootPath = Path.GetFullPath(Path.Combine(RootFolder, userPathSuffix));
                         Directory.CreateDirectory(userRootPath);
 
@@ -732,7 +719,6 @@ namespace UltimateServer.Services
             return dict;
         }
 
-        // Resolves path using the usersSites dictionary
         private string ResolvePath(string relativePath, string token)
         {
             if (!Sessions.TryGetValue(token, out var sessionData))
@@ -740,11 +726,9 @@ namespace UltimateServer.Services
 
             if (!usersFolders.TryGetValue(sessionData.username, out var pathSuffix))
             {
-                // Fallback to username if not in the map, for safety
                 pathSuffix = sessionData.username;
             }
 
-            // Prevent path traversal
             if (relativePath.Contains(".."))
                 return null;
 
@@ -752,7 +736,6 @@ namespace UltimateServer.Services
             var cleanRelativePath = (relativePath ?? "/").Trim('/').Replace('\\', '/');
             var fullPath = Path.GetFullPath(Path.Combine(userBasePath, cleanRelativePath));
 
-            // Security check: ensure the resolved path is within the user's base directory
             if (!fullPath.StartsWith(userBasePath))
                 return null;
 

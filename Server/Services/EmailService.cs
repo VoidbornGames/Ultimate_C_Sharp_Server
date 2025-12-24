@@ -44,6 +44,8 @@ namespace UltimateServer.Services
             await client.DisconnectAsync(true);
         }
 
+
+        // For production change the domain (voidgames.ir) in verifyCodeEmail to your own domain that dashboard is running on.
         public string verifyCodeEmail = @"<!DOCTYPE html>
 <html lang=""en"">
 <head>
@@ -276,7 +278,7 @@ namespace UltimateServer.Services
                                     <td style=""box-sizing:border-box;font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;color:#aeaeae;padding:35px;text-align:center"">
                                         <p style=""box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';text-align:left;margin-top:0;color:#74787e;font-size:12px;line-height:1.5em"">
                                             © 2025
-                                            <a style=""box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';color:#3869d4"" href=""https://voidborn-games.ir"" target=""_blank"" data-saferedirecturl=""https://www.google.com/url?q=https://voidborn-games.ir&amp;source=gmail&amp;ust=1760822014733000&amp;usg=AOvVaw3-U8xHE6T1MKQO_3vKIsjB"">Voidborn Games</a>.
+                                            <a style=""box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol';color:#3869d4"" href=""https://voidgames.ir"" target=""_blank"" data-saferedirecturl=""https://www.google.com/url?q=https://voidgames.ir&amp;source=gmail&amp;ust=1760822014733000&amp;usg=AOvVaw3-U8xHE6T1MKQO_3vKIsjB"">Voidborn Games</a>.
                                             All rights reserved.
                                         </p>
                                     </td>

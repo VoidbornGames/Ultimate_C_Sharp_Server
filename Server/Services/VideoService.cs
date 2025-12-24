@@ -1,11 +1,6 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
-using UltimateServer.Events; // <-- NEW: Event System Namespace
+using UltimateServer.Events;
 using UltimateServer.Models;
-using UltimateServer.Services;
 
 namespace UltimateServer.Services
 {
@@ -15,13 +10,12 @@ namespace UltimateServer.Services
         private readonly Logger _logger;
         private readonly IEventBus _eventBus;
 
-        // UPDATED CONSTRUCTOR: Accept FilePaths instead of a string
         public VideoService(
-            FilePaths filePaths, // <-- Changed from string videosFolder
+            FilePaths filePaths,
             Logger logger,
             IEventBus eventBus)
         {
-            _videosFolder = filePaths.VideosFolder; // <-- Get the path from the object
+            _videosFolder = filePaths.VideosFolder;
             _logger = logger;
             _eventBus = eventBus;
             PrepareVideos();
@@ -124,12 +118,10 @@ namespace UltimateServer.Services
 
                 await fileStream.FlushAsync();
 
-                // Verify file was downloaded
                 if (new FileInfo(filePath).Length > 0)
                 {
                     _logger.Log($"✅ Video downloaded successfully: {fileName} ({new FileInfo(filePath).Length} bytes)");
 
-                    // NEW: Publish the VideoUploadedEvent
                     await _eventBus.PublishAsync(new VideoUploadedEvent(fileName, videoUrl));
 
                     return (true, $"Download successful: {fileName}");

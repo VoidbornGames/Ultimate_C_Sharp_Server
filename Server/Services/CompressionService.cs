@@ -77,7 +77,6 @@ namespace UltimateServer.Services
             if (!_config.EnableCompression)
                 return false;
 
-            // Don't compress already compressed content
             if (contentType.Contains("image/") ||
                 contentType.Contains("video/") ||
                 contentType.Contains("application/zip") ||
@@ -86,7 +85,6 @@ namespace UltimateServer.Services
                 return false;
             }
 
-            // Compress text-based content
             return contentType.Contains("text/") ||
                    contentType.Contains("application/json") ||
                    contentType.Contains("application/xml") ||

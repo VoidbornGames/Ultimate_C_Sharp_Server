@@ -3,20 +3,10 @@ using System.Net;
 
 namespace UltimateServer.Services
 {
-    /// <summary>
-    /// Production-grade L7 Anti-DDoS / Anti-Abuse service.
-    /// 
-    /// Key design rules:
-    /// - Rate limit applies to ALL requests
-    /// - Concurrency limit applies ONLY to long-lived / expensive requests
-    /// - GET / static / panel traffic is NEVER concurrency-limited
-    /// - Browser parallelism is respected
-    /// </summary>
     public sealed class DDoSProtectionService : IDisposable
     {
         private readonly Logger _logger;
 
-        /* ================= CONFIG ================= */
 
         private readonly int _maxRequestsPerMinute;
         private readonly int _maxConcurrentConnections;
@@ -25,20 +15,17 @@ namespace UltimateServer.Services
         private readonly int _maxHeaderSizeBytes;
         private readonly int _maxTrackedIPs;
 
-        /* ================= STATE ================= */
 
         private readonly ConcurrentDictionary<string, IpTracker> _trackers = new();
         private readonly ConcurrentDictionary<string, BlockEntry> _blocked = new();
         private readonly ConcurrentDictionary<string, int> _activeConnections = new();
         private readonly Timer _cleanupTimer;
 
-        /* ================= TRUST ================= */
 
         private static readonly IPAddress[] TrustedProxies =
         {
             IPAddress.Loopback,
             IPAddress.IPv6Loopback
-            // Add reverse proxy IPs here
         };
 
         public DDoSProtectionService(
@@ -63,7 +50,6 @@ namespace UltimateServer.Services
                 TimeSpan.FromMinutes(1));
         }
 
-        /* ================= PUBLIC API ================= */
 
         public bool IsAllowed(HttpListenerRequest request)
         {
@@ -73,21 +59,18 @@ namespace UltimateServer.Services
             if (IsBlocked(ip, now))
                 return false;
 
-            // Payload protection
             if (request.ContentLength64 > _maxRequestSizeBytes)
                 return Strike(ip, "Payload too large");
 
             if (CalculateHeaderSize(request) > _maxHeaderSizeBytes)
                 return Strike(ip, "Headers too large");
 
-            // Rate limiting (ALL requests)
             var tracker = _trackers.GetOrAdd(ip, _ => new IpTracker(_maxRequestsPerMinute));
             tracker.Touch(now);
 
             if (!tracker.TryConsume(now))
                 return Strike(ip, "Rate limit exceeded");
 
-            // Concurrency limiting (ONLY expensive requests)
             if (ShouldCountConcurrency(request))
             {
                 var active = _activeConnections.AddOrUpdate(ip, 1, (_, v) => v + 1);
@@ -111,7 +94,6 @@ namespace UltimateServer.Services
             _activeConnections.AddOrUpdate(ip, 0, (_, v) => Math.Max(0, v - 1));
         }
 
-        /* ================= CORE LOGIC ================= */
 
         private bool Strike(string ip, string reason)
         {
@@ -138,8 +120,6 @@ namespace UltimateServer.Services
             return false;
         }
 
-        /* ================= CLEANUP ================= */
-
         private void Cleanup(object _)
         {
             var now = DateTime.UtcNow;
@@ -160,7 +140,6 @@ namespace UltimateServer.Services
             }
         }
 
-        /* ================= UTIL ================= */
 
         private static bool ShouldCountConcurrency(HttpListenerRequest request)
         {
@@ -171,7 +150,7 @@ namespace UltimateServer.Services
             if (request.Headers["Upgrade"]?.Equals("websocket", StringComparison.OrdinalIgnoreCase) == true)
                 return true;
 
-            return false; // GET / static / panel traffic ignored
+            return false;
         }
 
         private static int CalculateHeaderSize(HttpListenerRequest request)
@@ -201,7 +180,6 @@ namespace UltimateServer.Services
             _cleanupTimer.Dispose();
         }
 
-        /* ================= MODELS ================= */
 
         private sealed class BlockEntry
         {

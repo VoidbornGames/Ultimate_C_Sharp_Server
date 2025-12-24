@@ -20,14 +20,13 @@ namespace UltimateServer.Servers
         private ServerConfig _config;
         private ConcurrentDictionary<TcpClient, bool> _activeClients = new();
 
-        // REPLACE YOUR ENTIRE CONSTRUCTOR WITH THIS ONE
         public TcpServer(
-            ServerSettings settings, // <-- The first parameter is now ServerSettings
+            ServerSettings settings,
             ConfigManager configManager,
             Logger logger,
             CommandHandler commandHandler)
         {
-            _port = settings.tcpPort; // <-- We get the port from the settings object
+            _port = settings.tcpPort;
             _ip = configManager.Config.Ip;
             _logger = logger;
             _commandHandler = commandHandler;
@@ -50,7 +49,7 @@ namespace UltimateServer.Servers
                         var client = await _listener.AcceptTcpClientAsync(_cts.Token);
                         _logger.Log($"🔹 New client connected: {client.Client.RemoteEndPoint}");
 
-                        if (_activeClients.Count >= _config.MaxConnections) // This should come from config
+                        if (_activeClients.Count >= _config.MaxConnections)
                         {
                             _logger.Log($"⚠️ Connection refused: max clients reached.");
                             client.Close();

@@ -183,7 +183,6 @@ namespace UltimateServer.Servers
                     continue;
                 }
 
-                // Handle websocket commands
                 switch (req.theCommand)
                 {
                     case "broadcast":

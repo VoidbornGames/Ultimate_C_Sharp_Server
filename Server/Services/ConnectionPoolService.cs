@@ -25,7 +25,6 @@ namespace UltimateServer.Services
             _logger = logger;
             _semaphore = new SemaphoreSlim(_config.ConnectionPoolSize, _config.ConnectionPoolSize);
 
-            // Pre-warm the pool
             _ = Task.Run(async () =>
             {
                 for (int i = 0; i < _config.ConnectionPoolSize / 2; i++)
@@ -41,7 +40,6 @@ namespace UltimateServer.Services
 
             if (_pool.TryDequeue(out var connection))
             {
-                // Check if the connection is still valid
                 try
                 {
                     if (connection.Connected)
@@ -55,12 +53,10 @@ namespace UltimateServer.Services
                 }
                 catch
                 {
-                    // Connection is not valid, dispose it
                     try { connection.Close(); } catch { }
                 }
             }
 
-            // No valid connection in the pool, create a new one
             return await CreateConnectionAsync();
         }
 

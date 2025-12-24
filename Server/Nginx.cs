@@ -24,7 +24,7 @@ namespace UltimateServer
                 process.StartInfo.Arguments = arguments;
                 process.StartInfo.RedirectStandardOutput = true;
                 process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.UseShellExecute = false; // important
+                process.StartInfo.UseShellExecute = false;
                 process.StartInfo.CreateNoWindow = true;
 
                 process.Start();

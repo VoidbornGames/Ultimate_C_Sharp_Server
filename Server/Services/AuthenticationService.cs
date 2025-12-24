@@ -30,20 +30,16 @@ namespace UltimateServer.Services
 
         public string HashPassword(string password)
         {
-            // Generate a salt
             byte[] salt;
             new RNGCryptoServiceProvider().GetBytes(salt = new byte[16]);
 
-            // Create the Rfc2898DeriveBytes and get the hash value
             var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 10000);
             byte[] hash = pbkdf2.GetBytes(20);
 
-            // Combine the salt and password bytes for later use
             byte[] hashBytes = new byte[36];
             Array.Copy(salt, 0, hashBytes, 0, 16);
             Array.Copy(hash, 0, hashBytes, 16, 20);
 
-            // Turn the combined salt+hash into a string for storage
             return Convert.ToBase64String(hashBytes);
         }
 
@@ -51,18 +47,14 @@ namespace UltimateServer.Services
         {
             try
             {
-                // Extract the bytes
                 byte[] hashBytes = Convert.FromBase64String(storedPassword);
 
-                // Get the salt
                 byte[] salt = new byte[16];
                 Array.Copy(hashBytes, 0, salt, 0, 16);
 
-                // Compute the hash on the password the user entered
                 var pbkdf2 = new Rfc2898DeriveBytes(inputPassword, salt, 10000);
                 byte[] hash = pbkdf2.GetBytes(20);
 
-                // Compare the results
                 for (int i = 0; i < 20; i++)
                 {
                     if (hashBytes[i + 16] != hash[i])
@@ -113,7 +105,7 @@ namespace UltimateServer.Services
                 ValidateIssuer = false,
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = _jwtKey,
-                ValidateLifetime = false // here we are saying that we don't care about the token's expiration date
+                ValidateLifetime = false
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -177,7 +169,6 @@ namespace UltimateServer.Services
                 }
                 else
                 {
-                    // Lock expired, remove it
                     _lockedAccounts.TryRemove(username, out _);
                     _failedLoginAttempts.TryRemove(username, out _);
                 }
@@ -221,11 +212,9 @@ namespace UltimateServer.Services
 
         public string GenerateResetToken()
         {
-            // Use a cryptographically secure random number generator
             var randomNumber = new byte[32];
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
-            // Convert to a URL-safe base64 string
             return Convert.ToBase64String(randomNumber).Replace("+", "-").Replace("/", "_").TrimEnd('=');
         }
     }

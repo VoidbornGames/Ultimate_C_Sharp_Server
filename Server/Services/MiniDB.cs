@@ -13,17 +13,16 @@ using UltimateServer.Services;
 namespace UltimateServer.Services
 {
     /// <summary>
-    /// A simple, robust, file-based key-value database with enhanced features.
+    /// A simple, robust, file-based key-value database.
     /// It is thread-safe for all public operations.
     /// </summary>
     public class MiniDB
     {
-        // A record is perfect for an immutable data carrier like this.
         public record IndexEntry(long Offset, int Length, string TypeName, DateTime LastModified);
         public readonly MiniDBOptions _options;
 
         private readonly Dictionary<string, IndexEntry> _index = new();
-        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim(); // Enhanced locking for better read performance
+        private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private readonly Logger _logger;
         private bool _isIndexDirty = false;
         private readonly Timer _autoSaveTimer;
@@ -37,7 +36,6 @@ namespace UltimateServer.Services
             _options = configManager.Config.MiniDB_Options;
             _logger = logger;
 
-            // Set up auto-save timer if enabled
             if (_options.AutoSaveInterval > TimeSpan.Zero)
             {
                 _autoSaveTimer = new Timer(AutoSaveCallback, null,
@@ -45,9 +43,6 @@ namespace UltimateServer.Services
             }
         }
 
-        // ----------------------------------------------------------------------
-        // LIFECYCLE
-        // ----------------------------------------------------------------------
         public async Task Start()
         {
             EnsureFilesExist();
@@ -61,9 +56,6 @@ namespace UltimateServer.Services
             _logger.Log("📜 MiniDB has been stopped.");
         }
 
-        // ----------------------------------------------------------------------
-        // CORE OPERATIONS
-        // ----------------------------------------------------------------------
         /// <summary>
         /// Inserts a new object. Throws an exception if the key already exists.
         /// </summary>
@@ -80,12 +72,9 @@ namespace UltimateServer.Services
                     throw new MiniDBException($"An entry with key '{key}' already exists. Use UpsertAsync to update.");
                 }
 
-                // We use a synchronous write inside the lock to prevent other threads
-                // from interfering with the file pointer. The overall method is still async.
                 PerformWrite(key, obj);
                 _isIndexDirty = true;
 
-                // Update metrics
                 Interlocked.Increment(ref _totalOperations);
                 Interlocked.Increment(ref _writeOperations);
                 _metrics.Enqueue(new OperationMetric("Insert", stopwatch.Elapsed, key));
@@ -95,13 +84,12 @@ namespace UltimateServer.Services
                 _lock.ExitWriteLock();
             }
 
-            // Trigger auto-save if needed
             if (_options.AutoSaveThreshold > 0 && _totalOperations % _options.AutoSaveThreshold == 0)
             {
                 _ = Task.Run(async () => await SaveIndexAsync());
             }
 
-            await Task.CompletedTask; // Keep the signature async.
+            await Task.CompletedTask;
         }
 
         /// <summary>
@@ -115,12 +103,9 @@ namespace UltimateServer.Services
             _lock.EnterWriteLock();
             try
             {
-                // If key exists, we are overwriting the data. The old data becomes garbage.
-                // The new entry will simply point to the new data at the end of the file.
                 PerformWrite(key, obj);
                 _isIndexDirty = true;
 
-                // Update metrics
                 Interlocked.Increment(ref _totalOperations);
                 Interlocked.Increment(ref _writeOperations);
                 _metrics.Enqueue(new OperationMetric("Upsert", stopwatch.Elapsed, key));
@@ -130,7 +115,6 @@ namespace UltimateServer.Services
                 _lock.ExitWriteLock();
             }
 
-            // Trigger auto-save if needed
             if (_options.AutoSaveThreshold > 0 && _totalOperations % _options.AutoSaveThreshold == 0)
             {
                 _ = Task.Run(async () => await SaveIndexAsync());
@@ -161,13 +145,11 @@ namespace UltimateServer.Services
             }
 
             var requestedType = typeof(T);
-            // Use AssemblyQualifiedName for robust type checking.
             if (entry.TypeName != requestedType.AssemblyQualifiedName)
             {
                 throw new MiniDBTypeMismatchException(key, requestedType, Type.GetType(entry.TypeName)!);
             }
 
-            // File operations are synchronous inside the lock for atomicity.
             using var fs = new FileStream(_options.DatabaseFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             fs.Seek(entry.Offset, SeekOrigin.Begin);
 
@@ -178,7 +160,6 @@ namespace UltimateServer.Services
             byte[] data = new byte[dataLength];
             await fs.ReadAsync(data, 0, dataLength, cancellationToken);
 
-            // Update metrics
             Interlocked.Increment(ref _totalOperations);
             Interlocked.Increment(ref _readOperations);
             _metrics.Enqueue(new OperationMetric("Read", stopwatch.Elapsed, key));
@@ -200,7 +181,6 @@ namespace UltimateServer.Services
                 {
                     _isIndexDirty = true;
 
-                    // Update metrics
                     Interlocked.Increment(ref _totalOperations);
                     _metrics.Enqueue(new OperationMetric("Delete", stopwatch.Elapsed, key));
                 }
@@ -213,9 +193,6 @@ namespace UltimateServer.Services
             await Task.CompletedTask;
         }
 
-        // ----------------------------------------------------------------------
-        // BATCH OPERATIONS
-        // ----------------------------------------------------------------------
         /// <summary>
         /// Performs multiple operations in a batch for better performance.
         /// </summary>
@@ -263,16 +240,12 @@ namespace UltimateServer.Services
                 _lock.ExitWriteLock();
             }
 
-            // Update metrics
             Interlocked.Add(ref _totalOperations, opsList.Count);
             _metrics.Enqueue(new OperationMetric("Batch", stopwatch.Elapsed, $"{opsList.Count} operations"));
 
             await Task.CompletedTask;
         }
 
-        // ----------------------------------------------------------------------
-        // UTILITY & FEATURES
-        // ----------------------------------------------------------------------
         public async Task<bool> ContainsKeyAsync(string key, CancellationToken cancellationToken = default)
         {
             _lock.EnterReadLock();
@@ -357,11 +330,10 @@ namespace UltimateServer.Services
                     }
                 }
 
-                // Atomically replace old files with new ones
                 File.Replace(tempDbFile, _options.DatabaseFile, null);
                 _index.Clear();
                 foreach (var kvp in newIndex) _index.Add(kvp.Key, kvp.Value);
-                _isIndexDirty = true; // Mark as dirty so the new index is saved.
+                _isIndexDirty = true;
 
                 _logger.Log("✅ Database compaction completed successfully.");
             }
@@ -379,9 +351,6 @@ namespace UltimateServer.Services
             await Task.CompletedTask;
         }
 
-        // ----------------------------------------------------------------------
-        // PRIVATE HELPERS
-        // ----------------------------------------------------------------------
         private void PerformWrite<T>(string key, T obj)
         {
             byte[] data = Serialize(obj);
@@ -418,7 +387,7 @@ namespace UltimateServer.Services
             foreach (var line in lines)
             {
                 var parts = line.Split('|');
-                if (parts.Length == 5) // Updated to include LastModified
+                if (parts.Length == 5)
                 {
                     _index[parts[0]] = new IndexEntry(
                         long.Parse(parts[1]),
@@ -471,9 +440,6 @@ namespace UltimateServer.Services
         }
     }
 
-    // ----------------------------------------------------------------------
-    // SUPPORTING CLASSES
-    // ----------------------------------------------------------------------
     public class MiniDBOptions
     {
         public string DatabaseFile { get; set; } = "minidb.dat";
@@ -524,7 +490,6 @@ namespace UltimateServer.Services
         }
     }
 
-    // Custom exceptions
     public class MiniDBException : Exception
     {
         public MiniDBException(string message) : base(message) { }

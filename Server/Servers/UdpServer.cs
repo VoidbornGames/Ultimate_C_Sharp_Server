@@ -1,19 +1,12 @@
-﻿// File: Server/Servers/UdpServer.cs
-
-using System;
-using System.Collections.Concurrent;
-using System.Linq;
+﻿using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using UltimateServer.Models;
 using UltimateServer.Services;
 
 namespace UltimateServer.Servers
 {
-    // Represents a channel within a room
     internal class Channel
     {
         public string Id { get; set; }
@@ -21,25 +14,22 @@ namespace UltimateServer.Servers
         public ConcurrentDictionary<IPEndPoint, bool> Clients { get; set; } = new();
     }
 
-    // Represents a room containing multiple channels
     internal class Room
     {
         public string Id { get; set; }
         public string Name { get; set; }
         public ConcurrentDictionary<string, Channel> Channels { get; set; } = new();
-        public ConcurrentDictionary<IPEndPoint, string> ClientChannels { get; set; } = new(); // Maps client to their current channel ID
+        public ConcurrentDictionary<IPEndPoint, string> ClientChannels { get; set; } = new();
 
         public Room(string id, string name)
         {
             Id = id;
             Name = name;
-            // Create a default channel
             var defaultChannel = new Channel { Id = "general", Name = "General" };
             Channels.TryAdd("general", defaultChannel);
         }
     }
 
-    // Message types for client-server communication
     internal enum MessageType : byte
     {
         VoiceData = 0,
@@ -59,10 +49,8 @@ namespace UltimateServer.Servers
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private UdpClient _udpClient;
 
-        // Client management - maps client endpoint to their current room
         private readonly ConcurrentDictionary<IPEndPoint, string> _clientRooms = new();
 
-        // Room management
         private readonly ConcurrentDictionary<string, Room> _rooms = new();
 
         public UdpServer(ServerSettings settings, ConfigManager configManager, Logger logger)
@@ -70,7 +58,6 @@ namespace UltimateServer.Servers
             _port = settings.udpPort;
             _logger = logger;
 
-            // Create a default room
             var defaultRoom = new Room("lobby", "Lobby");
             _rooms.TryAdd("lobby", defaultRoom);
         }
@@ -90,7 +77,7 @@ namespace UltimateServer.Servers
                 catch (SocketException ex)
                 {
                     _logger.Log($"FATAL ERROR: Could not start server on port {_port}. Is it already in use? Error: {ex.Message}");
-                    return; // Exit if the port is unavailable
+                    return;
                 }
 
                 try
@@ -101,7 +88,6 @@ namespace UltimateServer.Servers
                         var sender = result.RemoteEndPoint;
                         var data = result.Buffer;
 
-                        // If we have at least 1 byte, check the message type
                         if (data.Length > 0)
                         {
                             var messageType = (MessageType)data[0];
@@ -136,10 +122,7 @@ namespace UltimateServer.Servers
                         }
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    // This is expected when StopAsync is called.
-                }
+                catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
                     if (!_cts.IsCancellationRequested)
@@ -157,25 +140,20 @@ namespace UltimateServer.Servers
         /// </summary>
         private async Task HandleVoiceData(IPEndPoint sender, byte[] data)
         {
-            // Check if the sender is in a room
             if (!_clientRooms.TryGetValue(sender, out var roomId) ||
                 !_rooms.TryGetValue(roomId, out var room))
             {
-                // If not in a room, add them to the default room
                 await HandleJoinRoom(sender, Encoding.UTF8.GetBytes($"{(byte)MessageType.JoinRoom}lobby"));
                 return;
             }
 
-            // Get the client's current channel
             if (!room.ClientChannels.TryGetValue(sender, out var channelId) ||
                 !room.Channels.TryGetValue(channelId, out var channel))
             {
-                // If not in a channel, add them to the default channel
                 await HandleJoinChannel(sender, Encoding.UTF8.GetBytes($"{(byte)MessageType.JoinChannel}general"));
                 return;
             }
 
-            // Forward the voice packet to all other clients in the same channel
             foreach (var clientEndpoint in channel.Clients.Keys)
             {
                 if (!clientEndpoint.Equals(sender))
@@ -202,24 +180,17 @@ namespace UltimateServer.Servers
             {
                 var roomId = Encoding.UTF8.GetString(data.Skip(1).ToArray());
 
-                // Remove client from current room if they're in one
                 if (_clientRooms.TryGetValue(sender, out var currentRoomId))
                 {
                     await HandleLeaveRoom(sender);
                 }
 
-                // Get or create the room
                 var room = _rooms.GetOrAdd(roomId, id => new Room(id, id));
-
-                // Add client to the room
                 _clientRooms.TryAdd(sender, roomId);
 
-                // Add client to the default channel
                 await HandleJoinChannel(sender, Encoding.UTF8.GetBytes($"{(byte)MessageType.JoinChannel}general"));
-
                 _logger.Log($"ℹ️ Client {sender.Address}:{sender.Port} joined room {roomId}");
 
-                // Send confirmation
                 var response = Encoding.UTF8.GetBytes($"{(byte)MessageType.ServerMessage}Joined room {roomId}");
                 await _udpClient.SendAsync(response, response.Length, sender);
             }
@@ -239,12 +210,10 @@ namespace UltimateServer.Servers
                 if (_clientRooms.TryRemove(sender, out var roomId) &&
                     _rooms.TryGetValue(roomId, out var room))
                 {
-                    // Remove from current channel
                     await HandleLeaveChannel(sender);
 
                     _logger.Log($"ℹ️ Client {sender.Address}:{sender.Port} left room {roomId}");
 
-                    // Send confirmation
                     var response = Encoding.UTF8.GetBytes($"{(byte)MessageType.ServerMessage}Left room {roomId}");
                     await _udpClient.SendAsync(response, response.Length, sender);
                 }
@@ -262,7 +231,6 @@ namespace UltimateServer.Servers
         {
             try
             {
-                // Make sure the client is in a room
                 if (!_clientRooms.TryGetValue(sender, out var roomId) ||
                     !_rooms.TryGetValue(roomId, out var room))
                 {
@@ -273,22 +241,18 @@ namespace UltimateServer.Servers
 
                 var channelId = Encoding.UTF8.GetString(data.Skip(1).ToArray());
 
-                // Remove from current channel if they're in one
                 if (room.ClientChannels.TryGetValue(sender, out var currentChannelId))
                 {
                     await HandleLeaveChannel(sender);
                 }
 
-                // Get or create the channel
                 var channel = room.Channels.GetOrAdd(channelId, id => new Channel { Id = id, Name = id });
 
-                // Add client to the channel
                 channel.Clients.TryAdd(sender, true);
                 room.ClientChannels.TryAdd(sender, channelId);
 
                 _logger.Log($"ℹ️ Client {sender.Address}:{sender.Port} joined channel {channelId} in room {roomId}");
 
-                // Send confirmation
                 var response = Encoding.UTF8.GetBytes($"{(byte)MessageType.ServerMessage}Joined channel {channelId}");
                 await _udpClient.SendAsync(response, response.Length, sender);
             }
@@ -315,7 +279,6 @@ namespace UltimateServer.Servers
 
                         _logger.Log($"ℹ️ Client {sender.Address}:{sender.Port} left channel {channelId} in room {roomId}");
 
-                        // Send confirmation
                         var response = Encoding.UTF8.GetBytes($"{(byte)MessageType.ServerMessage}Left channel {channelId}");
                         await _udpClient.SendAsync(response, response.Length, sender);
                     }
@@ -394,7 +357,7 @@ namespace UltimateServer.Servers
         {
             _cts.Cancel();
             _udpClient?.Close();
-            await Task.Delay(100); // Give time for operations to cancel
+            await Task.Delay(100);
         }
     }
 }

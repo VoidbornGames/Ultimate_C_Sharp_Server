@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection; // Required for IServiceProvider
+﻿using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using UltimateServer.Services;
 using System.Collections.Concurrent;
@@ -23,7 +23,7 @@ namespace UltimateServer.Servers
         private readonly ConfigManager _configManager;
         private readonly DownloadJobProcessor _downloadJobProcessor;
         private readonly DDoSProtectionService _ddosProtection;
-        private readonly IServiceProvider _serviceProvider; // Added for DI
+        private readonly IServiceProvider _serviceProvider;
         private HttpListener _httpListener;
         private CancellationTokenSource _cts;
         private double _lastCpuUsage = 0;
@@ -38,7 +38,7 @@ namespace UltimateServer.Servers
             VideoService videoService,
             PluginManager pluginManager,
             IServiceProvider serviceProvider,
-            ConfigManager configManager) // Injected IServiceProvider
+            ConfigManager configManager)
         {
             _port = settings.httpPort;
             _ip = settings.Ip;
@@ -72,14 +72,11 @@ namespace UltimateServer.Servers
                 _httpListener = new HttpListener();
                 string prefix = $"http://*:{_port}/";
                 _httpListener.Prefixes.Add(prefix);
-
-                // Set connection limits
                 _httpListener.IgnoreWriteExceptions = true;
 
                 _httpListener.Start();
                 _logger.Log($"🌐 HTTP server listening on {prefix}");
 
-                // Track active connections
                 var activeConnections = 0;
                 var maxConnections = _configManager.Config.MaxConnections;
 
@@ -89,7 +86,6 @@ namespace UltimateServer.Servers
                     {
                         try
                         {
-                            // Check connection limit
                             if (activeConnections >= maxConnections)
                             {
                                 await Task.Delay(100, _cts.Token);
@@ -117,7 +113,6 @@ namespace UltimateServer.Servers
                         }
                         catch (Exception ex) when (_cts.Token.IsCancellationRequested)
                         {
-                            // Expected during shutdown
                             break;
                         }
                         catch (Exception ex)
@@ -164,7 +159,6 @@ namespace UltimateServer.Servers
             _httpListener?.Stop();
             _logger.Log("🌐 HTTP server stopped.");
 
-            // Stop the download job processor
             await _downloadJobProcessor.StopAsync();
         }
 
@@ -172,9 +166,8 @@ namespace UltimateServer.Servers
         {
             var request = context.Request;
             var response = context.Response;
-            bool requestHandled = false; // Flag to track if a plugin handled the request
+            bool requestHandled = false;
 
-            // Add CORS headers
             response.AddHeader("Access-Control-Allow-Origin", "*");
             if (request.HttpMethod == "OPTIONS")
             {
@@ -185,7 +178,6 @@ namespace UltimateServer.Servers
                 return;
             }
 
-            // DDoS Protection Check
             if (!_ddosProtection.IsAllowed(request))
             {
                 response.StatusCode = (int)HttpStatusCode.TooManyRequests;
@@ -201,9 +193,6 @@ namespace UltimateServer.Servers
             HttpContextHolder.CurrentResponse = response;
             try
             {
-                // =================================================================
-                // 1. Check for a plugin-registered route first
-                // =================================================================
                 foreach (var pluginEntry in _pluginManager.GetLoadedPlugins())
                 {
                     var plugin = pluginEntry.Value;
@@ -215,7 +204,6 @@ namespace UltimateServer.Servers
                         {
                             try
                             {
-                                // The plugin handler can now get the response from HttpContextHolder
                                 await handler(request);
                                 requestHandled = true;
                                 break;
@@ -223,8 +211,6 @@ namespace UltimateServer.Servers
                             catch (Exception ex)
                             {
                                 _logger.LogError($"Plugin route handler error: {ex.Message}");
-                                // IMPORTANT: Let the plugin handle its own error response.
-                                // Just log it and mark as handled so the server doesn't also try to respond.
                                 requestHandled = true;
                                 break;
                             }
@@ -232,19 +218,13 @@ namespace UltimateServer.Servers
                     }
                 }
 
-                // If a plugin handled the request, we're done.
                 if (requestHandled)
                 {
                     return;
                 }
 
-                // =================================================================
-                // 2. Handle default server routes
-                // =================================================================
-                // ... (all your switch cases for /api/login, /stats, etc.) ...
                 switch (request.Url.AbsolutePath)
                 {
-                    // Authentication endpoints
                     case "/api/login":
                         await HandleLoginAsync(request, response);
                         break;
@@ -257,7 +237,6 @@ namespace UltimateServer.Servers
                         await HandleTwoFactorVerificationAsync(request, response);
                         break;
 
-                    // Plugin management endpoints
                     case "/api/plugins":
                         if (ValidateAdminAuthentication(request))
                             await HandlePluginsListAsync(request, response);
@@ -279,7 +258,6 @@ namespace UltimateServer.Servers
                             SendUnauthorized(response);
                         break;
 
-                    // Protected endpoints - require authentication
                     case "/stats":
                         if (ValidateAdminAuthentication(request))
                             await HandleStatsAsync(request, response);
@@ -317,12 +295,10 @@ namespace UltimateServer.Servers
 
 
                     case "/api/request-password-reset":
-                        // This endpoint does not require authentication
                         await HandleRequestPasswordResetAsync(request, response);
                         break;
 
                     case "/api/confirm-password-reset":
-                        // This endpoint also does not require authentication, as the user is not logged in
                         await HandleConfirmPasswordResetAsync(request, response);
                         break;
 
@@ -362,7 +338,6 @@ namespace UltimateServer.Servers
                         break;
 
                     default:
-                        // Handle plugin enable/disable (placeholder)
                         if (request.Url.AbsolutePath.StartsWith("/api/plugins/") &&
                             (request.Url.AbsolutePath.EndsWith("/enable") || request.Url.AbsolutePath.EndsWith("/disable")))
                         {
@@ -407,12 +382,8 @@ namespace UltimateServer.Servers
             {
                 _ddosProtection.OnRequestFinished(request);
 
-                // IMPORTANT: Clear the context to prevent memory leaks and ensure
-                // a response from one request doesn't leak into another.
                 HttpContextHolder.CurrentResponse = null;
 
-                // Only close the response if the SERVER handled it.
-                // If a plugin handled it, the plugin is responsible for closing it.
                 if (!requestHandled)
                 {
                     response.Close();
@@ -420,9 +391,6 @@ namespace UltimateServer.Servers
             }
         }
 
-        // ========================================================================
-        // API ENDPOINTS
-        // ========================================================================
 
         private async Task HandleRequestSitesAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
@@ -430,7 +398,6 @@ namespace UltimateServer.Servers
             {
                 try
                 {
-                    // Get all sites (just names)
                     var sites = _serviceProvider.GetRequiredService<SitePress>().sites;
                     await WriteJsonResponseAsync(response, sites);
                 }
@@ -567,7 +534,6 @@ namespace UltimateServer.Servers
                 var resetRequest = JsonConvert.DeserializeObject<ChangePasswordRequest>(body);
                 if (resetRequest != null)
                 {
-                    // Manual validation since no model binding
                     if (string.IsNullOrEmpty(resetRequest.Email) || string.IsNullOrEmpty(resetRequest.Token) || string.IsNullOrEmpty(resetRequest.NewPassword))
                     {
                         response.StatusCode = 400;
@@ -698,9 +664,6 @@ namespace UltimateServer.Servers
             await WriteJsonResponseAsync(response, new { success = false, message = "2FA not implemented" });
         }
 
-        // ========================================================================
-        // PLUGIN MANAGEMENT ENDPOINTS
-        // ========================================================================
 
         private async Task HandlePluginsListAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
@@ -761,7 +724,6 @@ namespace UltimateServer.Servers
 
             try
             {
-                // --- Step 1: Save the uploaded file to a temporary location ---
                 _logger.Log("📤 Receiving plugin file...");
                 var (filename, fileContent) = await ReadMultipartFileAsync(request);
                 if (string.IsNullOrEmpty(filename))
@@ -776,20 +738,17 @@ namespace UltimateServer.Servers
                 await File.WriteAllBytesAsync(tempFilePath, fileContent);
                 _logger.Log($"✅ Plugin temporarily saved to '{tempFilePath}'");
 
-                // --- Step 2: Unload all existing plugins ---
                 _logger.Log("🔄 Unloading existing plugins before replacement...");
                 await _pluginManager.UnloadAllPluginsAsync();
 
-                // --- Step 3: Replace the old file with the new one ---
                 if (File.Exists(finalFilePath))
                 {
                     File.Delete(finalFilePath);
                 }
                 File.Move(tempFilePath, finalFilePath);
                 _logger.Log($"✅ Replaced old plugin with '{finalFilePath}'");
-                tempFilePath = null; // Mark as moved, so we don't delete it in the finally block
+                tempFilePath = null;
 
-                // --- Step 4: Load the new plugins ---
                 await _pluginManager.LoadPluginsAsync();
 
                 _logger.Log("✅ Plugin upload and reload complete.");
@@ -803,8 +762,6 @@ namespace UltimateServer.Servers
             }
             finally
             {
-                // --- Step 5: Cleanup ---
-                // If the temp file still exists (due to an error), delete it.
                 if (tempFilePath != null && File.Exists(tempFilePath))
                 {
                     try
@@ -821,7 +778,7 @@ namespace UltimateServer.Servers
         }
 
         /// <summary>
-        /// REQUIRED HELPER METHOD 1: Parses multipart/form-data to extract a single file.
+        /// Parses multipart/form-data to extract a single file.
         /// </summary>
         private async Task<(string filename, byte[] data)> ReadMultipartFileAsync(HttpListenerRequest request)
         {
@@ -859,7 +816,7 @@ namespace UltimateServer.Servers
         }
 
         /// <summary>
-        /// REQUIRED HELPER METHOD 2: Finds a byte array within another byte array.
+        /// Finds a byte array within another byte array.
         /// </summary>
         private int FindIndexOf(byte[] source, byte[] pattern, int startIndex = 0)
         {
@@ -896,14 +853,11 @@ namespace UltimateServer.Servers
                 _logger.Log("🔄 Reloading plugins via API request...");
                 var pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
 
-                // 1. Unload all plugins first
                 await _pluginManager.UnloadAllPluginsAsync();
 
-                // 2. CRITICAL: Add a small delay to allow the OS to release file locks
                 _logger.Log("⏳ Waiting for file locks to be released...");
-                await Task.Delay(1000); // Wait for 500 milliseconds
+                await Task.Delay(1000);
 
-                // 3. Load all plugins from the directory
                 await _pluginManager.LoadPluginsAsync();
 
                 _logger.Log("✅ Plugin reload complete.");
@@ -964,34 +918,28 @@ namespace UltimateServer.Servers
 
         private async Task HandleMarketDownloadAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
-            // 1. Ensure the request is a POST
             if (request.HttpMethod != "POST")
             {
-                response.StatusCode = 405; // Method Not Allowed
+                response.StatusCode = 405;
                 await WriteJsonResponseAsync(response, new { success = false, message = "Only POST method is allowed." });
                 return;
             }
 
             try
             {
-                // 2. Read and deserialize the request body
                 using var reader = new StreamReader(request.InputStream);
                 string body = await reader.ReadToEndAsync();
                 var downloadRequest = JsonConvert.DeserializeObject<MarketPlugin>(body);
 
-                // 3. Validate the request data
                 if (downloadRequest == null || string.IsNullOrWhiteSpace(downloadRequest.DownloadLink) || string.IsNullOrWhiteSpace(downloadRequest.Name))
                 {
-                    response.StatusCode = 400; // Bad Request
+                    response.StatusCode = 400;
                     await WriteJsonResponseAsync(response, new { success = false, message = "Request body must contain a valid 'DownloadLink' and 'Name' property." });
                     return;
                 }
-
-                // 4. Add the job to the queue instead of processing immediately
                 _downloadJobProcessor.EnqueueJob(downloadRequest);
 
-                // 5. Send a success response back to the client immediately
-                response.StatusCode = 202; // Accepted
+                response.StatusCode = 202;
                 await WriteJsonResponseAsync(response, new
                 {
                     success = true,
@@ -1001,7 +949,7 @@ namespace UltimateServer.Servers
             catch (Exception ex)
             {
                 _logger.LogError($"Error in Marketplace download handler: {ex.Message}");
-                response.StatusCode = 500; // Internal Server Error
+                response.StatusCode = 500;
                 await WriteJsonResponseAsync(response, new { success = false, message = "An internal error occurred while queuing the download request." });
             }
         }
@@ -1019,30 +967,26 @@ namespace UltimateServer.Servers
 
         private async Task HandleProcessKill(HttpListenerRequest request, HttpListenerResponse response)
         {
-            // Ensure the request is a POST
             if (request.HttpMethod != "POST")
             {
-                response.StatusCode = 405; // Method Not Allowed
+                response.StatusCode = 405;
                 await WriteJsonResponseAsync(response, new { success = false, message = "Only POST method is allowed." });
                 return;
             }
 
             try
             {
-                // Read and deserialize the request body
                 using var reader = new StreamReader(request.InputStream);
                 string body = await reader.ReadToEndAsync();
                 var processStopRequest = JsonConvert.DeserializeObject<StopProcessRequest>(body);
 
-                // Validate the request data
                 if (processStopRequest == null || string.IsNullOrWhiteSpace(processStopRequest.ProcessName))
                 {
-                    response.StatusCode = 400; // Bad Request
+                    response.StatusCode = 400;
                     await WriteJsonResponseAsync(response, new { success = false, message = "Request body must contain a valid 'ProcessName' property." });
                     return;
                 }
 
-                // Simplified process finding logic
                 var processes = Process.GetProcessesByName(processStopRequest.ProcessName);
 
                 if (!processes.Any())
@@ -1052,7 +996,6 @@ namespace UltimateServer.Servers
                     return;
                 }
 
-                // Kill all processes with the given name
                 foreach (var process in processes)
                 {
                     process.Kill();
@@ -1082,9 +1025,6 @@ namespace UltimateServer.Servers
             });
         }
 
-        // ========================================================================
-        // AUTHENTICATION & AUTHORIZATION HELPERS
-        // ========================================================================
 
         private bool ValidateAdminAuthentication(HttpListenerRequest request)
         {
@@ -1120,9 +1060,6 @@ namespace UltimateServer.Servers
             response.AddHeader("WWW-Authenticate", "Bearer");
         }
 
-        // ========================================================================
-        // CORE REQUEST HANDLERS
-        // ========================================================================
 
         private async Task HandleStatsAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
@@ -1248,13 +1185,9 @@ namespace UltimateServer.Servers
             }
         }
 
-        // ========================================================================
-        // FILE SERVING
-        // ========================================================================
 
         private async Task ServeVideoAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
-            // (This method is complex but appears correct, so I will leave it as is)
             try
             {
                 string path = request.Url.AbsolutePath;
@@ -1316,27 +1249,21 @@ namespace UltimateServer.Servers
 
             if (File.Exists(htmlPath))
             {
-                // Read the HTML file
                 string html = await File.ReadAllTextAsync(htmlPath);
 
-                // Read the CSS file if it exists
                 if (File.Exists(cssPath))
                 {
                     string css = await File.ReadAllTextAsync(cssPath);
-                    // Inject the CSS into the HTML within a <style> tag
                     string styledHtml = html.Replace("</head>", $"<style>\n{css}\n</style>\n</head>");
                     html = styledHtml;
                 }
-                // Read the JS file if it exists
                 if (File.Exists(cssPath))
                 {
                     string js = await File.ReadAllTextAsync(jsPath);
-                    // Inject the JS into the HTML within a <script> tag
                     string funcedHtml = html.Replace("</body>", $"<script>\n{js}\n</script>\n</body>");
                     html = funcedHtml;
                 }
 
-                // Send the final HTML (now with embedded CSS)
                 byte[] buffer = Encoding.UTF8.GetBytes(html);
                 response.ContentType = "text/html";
                 response.ContentLength64 = buffer.Length;
@@ -1348,9 +1275,6 @@ namespace UltimateServer.Servers
             }
         }
 
-        // ========================================================================
-        // HELPER METHODS
-        // ========================================================================
 
         private async Task WriteJsonResponseAsync(HttpListenerResponse response, object data)
         {
@@ -1372,11 +1296,9 @@ namespace UltimateServer.Servers
 
     /// <summary>
     /// Holds the HttpListenerResponse for the current asynchronous request context.
-    /// This allows plugins to access the response even when they only receive the request.
     /// </summary>
     public class HttpContextHolder
     {
-        // AsyncLocal ensures the value is correct even across multiple concurrent async requests.
         private static readonly AsyncLocal<HttpListenerResponse> _currentResponse = new();
 
         public static HttpListenerResponse CurrentResponse
@@ -1411,25 +1333,21 @@ namespace UltimateServer.Servers
 
         public void EnqueueJob(MarketPlugin downloadRequest)
         {
-            // Don't enqueue new jobs if the processor is stopping.
             if (!_cancellationTokenSource.Token.IsCancellationRequested)
             {
                 _jobQueue.Enqueue(downloadRequest);
-                _signal.Release(); // Signal that a new job is available
+                _signal.Release();
             }
         }
 
         private async Task ProcessJobsAsync()
         {
-            //_logger.Log("Download job processor started.");
             try
             {
-                while (true) // Loop indefinitely until broken by cancellation
+                while (true)
                 {
-                    // This line will throw OperationCanceledException when the token is cancelled.
                     await _signal.WaitAsync(_cancellationTokenSource.Token);
 
-                    // Check for cancellation again in case a job was enqueued just before cancellation.
                     if (_cancellationTokenSource.Token.IsCancellationRequested)
                     {
                         break;
@@ -1448,39 +1366,26 @@ namespace UltimateServer.Servers
                     }
                 }
             }
-            catch (OperationCanceledException)
-            {
-                // This exception is expected when StopAsync() is called.
-                // It's the signal to exit the processing loop gracefully.
-                // We can just log it and let the method finish.
-                //_logger.Log("Download job processor is stopping due to cancellation.");
-            }
-            //_logger.Log("Download job processor stopped.");
+            catch (OperationCanceledException) { }
         }
 
         private async Task ProcessDownloadJobAsync(MarketPlugin downloadRequest)
         {
-            // 1. Define the local path to save the file
             string pluginsDirectory = Path.Combine(AppContext.BaseDirectory, "plugins");
             string fileName = $"{downloadRequest.Name}.dll";
             string filePath = Path.Combine(pluginsDirectory, fileName);
 
-            // Ensure the "plugins" directory exists
             Directory.CreateDirectory(pluginsDirectory);
 
-            // 2. Download the file using HttpClient
             using var client = new HttpClient();
-            // Pass the cancellation token to the download operation as well for a more responsive shutdown.
             var downloadResponse = await client.GetAsync(downloadRequest.DownloadLink, HttpCompletionOption.ResponseHeadersRead, _cancellationTokenSource.Token);
 
-            // 3. Check if the download was successful
             if (!downloadResponse.IsSuccessStatusCode)
             {
                 _logger.LogError($"Failed to download file from URL: {downloadRequest.DownloadLink}. Status: {downloadResponse.StatusCode}");
                 return;
             }
 
-            // 4. Save the file to the local "plugins" folder
             using (var contentStream = await downloadResponse.Content.ReadAsStreamAsync())
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
@@ -1490,23 +1395,18 @@ namespace UltimateServer.Servers
             _logger.Log($"Successfully downloaded and saved plugin to: {filePath}");
             _logger.Log("🔄 Reloading plugins via Marketplace request...");
 
-            // Unload all plugins first
             await _pluginManager.UnloadAllPluginsAsync();
 
-            // CRITICAL: Add a small delay to allow the OS to release file locks
             _logger.Log("⏳ Waiting for file locks to be released...");
-            await Task.Delay(1000, _cancellationTokenSource.Token); // Pass token here too
+            await Task.Delay(1000, _cancellationTokenSource.Token);
 
-            // Load all plugins from the directory
             await _pluginManager.LoadPluginsAsync();
         }
 
         public async Task StopAsync()
         {
-            //_logger.Log("Requesting download job processor to stop...");
             _cancellationTokenSource.Cancel();
             await _processingTask;
-            //_logger.Log("Download job processor has been stopped.");
         }
     }
 }

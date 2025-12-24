@@ -41,7 +41,6 @@ namespace UltimateServer.Services
                     return new Data { protocolVersion = 1, theCommand = "createUser", jsonData = "Invalid request data." };
                 }
 
-                // Call the async method and bridge the sync/async gap
                 var (user, message) = _userService.CreateUserAsync(registerRequest).GetAwaiter().GetResult();
 
                 if (user != null)
@@ -95,7 +94,6 @@ namespace UltimateServer.Services
 
         public bool TryHandleCommand(Data request, out Data response)
         {
-            // If the user dont exist or its password is wrong we will return false
             if (!ValidateRequester(request.userName, request.encryptedPassword))
             {
                 response = new() { theCommand = "Invalid User" };
@@ -114,12 +112,9 @@ namespace UltimateServer.Services
         /// <summary>
         /// Validates if the requester is a valid user and its password is correct.
         /// </summary>
-        /// <param name="username">The username of user</param>
-        /// <param name="encryptedPassword">The encrypted password of user</param>
-        /// <returns></returns>
         public bool ValidateRequester(string username, string encryptedPassword)
         {
-            var user = _userService.Users.First(user => user.Username == username);
+            var user = _userService.Users.FirstOrDefault(user => user.Username == username, null);
             if (user == null)
                 return false;
 
@@ -133,9 +128,6 @@ namespace UltimateServer.Services
         /// <summary>
         /// Decrypts an encrypted password using the uuid of that user
         /// </summary>
-        /// <param name="encryptedPassword">The Encrypted password</param>
-        /// <param name="uuid">The UUID of the user with this encrypted password</param>
-        /// <returns></returns>
         public string GetTheDecryptedPassword(string encryptedPassword, string uuid)
         {
             try
@@ -158,20 +150,15 @@ namespace UltimateServer.Services
 
 public static class SecureEncryption
 {
-    // Use a stronger key size of 256 bits
     private const int KeySize = 256;
 
-    // Increase the iteration count to a more secure value
     private const int DerivationIterations = 10000;
 
-    // Size of the salt and IV in bytes
     private const int SaltSize = 32;
     private const int IvSize = 16;
 
-    // Use AES instead of the deprecated RijndaelManaged
     public static string Encrypt(string plainText, string passPhrase)
     {
-        // Generate random salt and IV
         var saltBytes = GenerateRandomBytes(SaltSize);
         var ivBytes = GenerateRandomBytes(IvSize);
         var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
@@ -191,7 +178,6 @@ public static class SecureEncryption
                 {
                     using (var memoryStream = new MemoryStream())
                     {
-                        // Write salt and IV to the beginning of the stream
                         memoryStream.Write(saltBytes, 0, saltBytes.Length);
                         memoryStream.Write(ivBytes, 0, ivBytes.Length);
 
@@ -200,7 +186,6 @@ public static class SecureEncryption
                             cryptoStream.Write(plainTextBytes, 0, plainTextBytes.Length);
                             cryptoStream.FlushFinalBlock();
 
-                            // Convert the entire stream to Base64
                             return Convert.ToBase64String(memoryStream.ToArray());
                         }
                     }
@@ -213,16 +198,12 @@ public static class SecureEncryption
     {
         try
         {
-            // Get the complete stream of bytes
             var cipherTextBytesWithSaltAndIv = Convert.FromBase64String(cipherText);
 
-            // Extract the salt bytes
             var saltBytes = cipherTextBytesWithSaltAndIv.Take(SaltSize).ToArray();
 
-            // Extract the IV bytes
             var ivBytes = cipherTextBytesWithSaltAndIv.Skip(SaltSize).Take(IvSize).ToArray();
 
-            // Extract the actual ciphertext
             var cipherTextBytes = cipherTextBytesWithSaltAndIv
                 .Skip(SaltSize + IvSize)
                 .Take(cipherTextBytesWithSaltAndIv.Length - SaltSize - IvSize)
@@ -255,7 +236,6 @@ public static class SecureEncryption
         }
         catch (Exception ex)
         {
-            // Log the exception if needed
             throw new CryptographicException("Failed to decrypt the text.", ex);
         }
     }
@@ -270,30 +250,26 @@ public static class SecureEncryption
         return randomBytes;
     }
 
-    // Method to generate a secure hash for password storage
     public static string GeneratePasswordHash(string password, string salt = null)
     {
         byte[] saltBytes;
         if (salt == null)
         {
-            // Generate a new salt if one is not provided
             saltBytes = GenerateRandomBytes(SaltSize);
             salt = Convert.ToBase64String(saltBytes);
         }
         else
         {
-            // Use the provided salt
             saltBytes = Convert.FromBase64String(salt);
         }
 
         using (var pbkdf2 = new Rfc2898DeriveBytes(password, saltBytes, DerivationIterations, HashAlgorithmName.SHA256))
         {
-            byte[] hash = pbkdf2.GetBytes(32); // 256-bit hash
+            byte[] hash = pbkdf2.GetBytes(32);
             return Convert.ToBase64String(hash);
         }
     }
 
-    // Method to verify a password against its hash
     public static bool VerifyPassword(string password, string hash, string salt)
     {
         try

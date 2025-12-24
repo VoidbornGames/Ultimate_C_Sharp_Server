@@ -1,6 +1,4 @@
-﻿// In UltimateServer.Services/PluginContext.cs
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -22,7 +20,6 @@ namespace UltimateServer.Services
 
         private readonly Dictionary<string, Func<HttpListenerRequest, Task>> _routes = new();
 
-        // FIXED: Use the server's logger instance directly
         public PluginContext(Logger serverLogger, IEventBus eventBus, IServiceProvider serviceProvider)
         {
             Logger = serverLogger;

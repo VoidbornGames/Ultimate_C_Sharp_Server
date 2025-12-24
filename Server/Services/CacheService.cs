@@ -17,7 +17,6 @@ namespace UltimateServer.Services
             _config = config;
             _logger = logger;
 
-            // Start a background task to clean up expired items
             _ = Task.Run(async () =>
             {
                 while (true)

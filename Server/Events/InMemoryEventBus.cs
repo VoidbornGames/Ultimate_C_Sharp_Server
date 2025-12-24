@@ -10,7 +10,6 @@ namespace UltimateServer.Services
     /// <summary>
     /// An in-memory implementation of an event bus.
     /// NOTE: This is not durable across server restarts and does not work in a multi-server environment.
-    /// For production, consider using RabbitMQ, Azure Service Bus, or Kafka.
     /// </summary>
     public class InMemoryEventBus : IEventBus
     {
