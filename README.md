@@ -3,7 +3,6 @@ A powerful, multi-purpose C# server built with a modern, service-oriented archit
 
 <main class="container">
 <div class="header">
-            <img src="https://github.com/VoidbornGames/UltimateServer/blob/main/Ultimate%20Server%20Logo.png" alt="UltimateServer Logo">
             <div class="header-links">
                 <a href="https://dashboard.voidgames.ir" target="_blank"><strong>Live Dashboard</strong></a> •
                 <a href="https://github.com/VoidbornGames/UltimateServer/wiki">Documentation</a> •
