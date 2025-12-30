@@ -1,6 +1,8 @@
 # UltimateServer ![Version](https://img.shields.io/badge/version-7.13.7-blue) ![Coverage](https://img.shields.io/badge/coverage-95%25-blue)
 A powerful, multi-purpose C# server built with a modern, service-oriented architecture. Features real-time dashboard, robust user management, a dynamic plugin system, secure video streaming, Single Click Site Creation, and real-time voice chat capabilities. Designed for game servers, monitoring systems, and real-time applications.
 
+![Fresh Screenshot](Preview.png)
+
 <main class="container">
 <div class="header">
             <div class="header-links">
@@ -10,7 +12,6 @@ A powerful, multi-purpose C# server built with a modern, service-oriented archit
                 <a href="https://discord.gg/ftffAd37Hx">Discord</a>
             </div>
             <p><em>Note: Live dashboard login credentials have been changed due to abuse.</em></p>
-            <img src="https://github.com/VoidbornGames/UltimateServer/blob/main/Preview.png" alt="UltimateServer Dashboard Screenshot" class="screenshot">
         </div>
 <nav class="toc">
             <h2 id="table-of-contents">Table of Contents</h2>
