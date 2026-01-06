@@ -39,12 +39,14 @@ namespace UltimateServer.Servers
         LeaveChannel = 4,
         RoomList = 5,
         ChannelList = 6,
-        ServerMessage = 7
+        ServerMessage = 7,
+        PacketData = 8
     }
 
     internal class UdpServer
     {
         private readonly int _port;
+        private readonly int _maxPacketSize;
         private readonly Logger _logger;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private UdpClient _udpClient;
@@ -55,6 +57,7 @@ namespace UltimateServer.Servers
 
         public UdpServer(ServerSettings settings, ConfigManager configManager, Logger logger)
         {
+            _maxPacketSize = configManager.Config.MaxRequestSizeMB * 1024 * 3;
             _port = settings.udpPort;
             _logger = logger;
 
@@ -94,26 +97,29 @@ namespace UltimateServer.Servers
 
                             switch (messageType)
                             {
+                                case MessageType.PacketData:
+                                    _ = HandlePacketDataShare(sender, data);
+                                    break;
                                 case MessageType.VoiceData:
-                                    await HandleVoiceData(sender, data);
+                                    _ = HandleVoiceData(sender, data);
                                     break;
                                 case MessageType.JoinRoom:
-                                    await HandleJoinRoom(sender, data);
+                                    _ = HandleJoinRoom(sender, data);
                                     break;
                                 case MessageType.LeaveRoom:
-                                    await HandleLeaveRoom(sender);
+                                    _ = HandleLeaveRoom(sender);
                                     break;
                                 case MessageType.JoinChannel:
-                                    await HandleJoinChannel(sender, data);
+                                    _ = HandleJoinChannel(sender, data);
                                     break;
                                 case MessageType.LeaveChannel:
-                                    await HandleLeaveChannel(sender);
+                                    _ = HandleLeaveChannel(sender);
                                     break;
                                 case MessageType.RoomList:
-                                    await SendRoomList(sender);
+                                    _ = SendRoomList(sender);
                                     break;
                                 case MessageType.ChannelList:
-                                    await SendChannelList(sender, data);
+                                    _ = SendChannelList(sender, data);
                                     break;
                                 default:
                                     _logger.Log($"⚠️ Unknown message type: {messageType} from {sender}");
@@ -160,6 +166,49 @@ namespace UltimateServer.Servers
                 {
                     try
                     {
+                        await _udpClient.SendAsync(data, data.Length, clientEndpoint);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log($"❌ Failed to send to client {clientEndpoint}. Removing. Error: {ex.Message}");
+                        RemoveClient(clientEndpoint);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles data packets and forwards them to clients in the same room and channel.
+        /// </summary>
+        private async Task HandlePacketDataShare(IPEndPoint sender, byte[] data)
+        {
+            if (!_clientRooms.TryGetValue(sender, out var roomId) ||
+                !_rooms.TryGetValue(roomId, out var room))
+            {
+                await HandleJoinRoom(sender, Encoding.UTF8.GetBytes($"{(byte)MessageType.JoinRoom}lobby"));
+                return;
+            }
+
+            if (!room.ClientChannels.TryGetValue(sender, out var channelId) ||
+                !room.Channels.TryGetValue(channelId, out var channel))
+            {
+                await HandleJoinChannel(sender, Encoding.UTF8.GetBytes($"{(byte)MessageType.JoinChannel}general"));
+                return;
+            }
+
+            foreach (var clientEndpoint in channel.Clients.Keys)
+            {
+                if (!clientEndpoint.Equals(sender))
+                {
+                    try
+                    {
+                        if (data.Length > _maxPacketSize)
+                        {
+                            _logger.Log($"❌ Failed to handle client data. Removing client {clientEndpoint}. Max packet size exeeded!");
+                            RemoveClient(clientEndpoint);
+                            continue;
+                        }
+
                         await _udpClient.SendAsync(data, data.Length, clientEndpoint);
                     }
                     catch (Exception ex)
@@ -358,6 +407,23 @@ namespace UltimateServer.Servers
             _cts.Cancel();
             _udpClient?.Close();
             await Task.Delay(100);
+        }
+
+
+        private struct UltimatePacket
+        {
+            public Vector3 position;
+            public Vector3 rotation;
+            public Vector3 scale;
+            public string state;
+            public string extra;
+        }
+
+        private struct Vector3
+        {
+            public int x;
+            public int y;
+            public int z;
         }
     }
 }

@@ -31,10 +31,7 @@ namespace UltimateServer
                 udpPort = parsedVoicePort;
             if (args.Length > 3 && int.TryParse(args[3], out int parsedSftpPort))
                 sftpPort = parsedSftpPort;
-
             var services = new ServiceCollection();
-
-
 
             services.AddSingleton<Logger>();
             services.AddSingleton(provider => new ConfigManager(logger: provider.GetRequiredService<Logger>()));
@@ -58,7 +55,6 @@ namespace UltimateServer
             services.AddSingleton<UdpServer>();
 
 
-
             services.AddScoped<AuthenticationService>(provider =>
                 new AuthenticationService(
                     JwtSecret,
@@ -72,20 +68,14 @@ namespace UltimateServer
 
             var serviceProvider = services.BuildServiceProvider();
 
-
-
             var logger = serviceProvider.GetRequiredService<Logger>();
             logger.PrepareLogs();
-            var pluginManager = serviceProvider.GetRequiredService<PluginManager>();
-
-
 
             var eventBus = serviceProvider.GetRequiredService<IEventBus>();
             var eventHandler = serviceProvider.GetRequiredService<Services.EventHandler>();
 
             eventBus.Subscribe<UserRegisteredEvent>(eventHandler);
             eventBus.Subscribe<VideoUploadedEvent>(eventHandler);
-
 
 
             var userService = serviceProvider.GetRequiredService<UserService>();
@@ -100,6 +90,7 @@ namespace UltimateServer
             var miniDB = serviceProvider.GetRequiredService<MiniDB>();
             var dataBackuper = serviceProvider.GetRequiredService<DataBackuper>();
             var webSocketServer = serviceProvider.GetRequiredService<WebSocketServer>();
+            var pluginManager = serviceProvider.GetRequiredService<PluginManager>();
 
             await miniDB.Start();
             await dataBox.Start();
@@ -192,7 +183,7 @@ namespace UltimateServer
                 logger.Log("✅ Shutdown complete.");
             }
 
-            // Use the Default command for building the project so there will be no need of .Net to run the app!
+            // Use the Default command for building the project so there will be no need of DotNet to run the app!
             // Default build command: dotnet publish -c Release -r linux-x64 --self-contained true -p:PublishTrimmed=true -p:TrimMode=partial -p:InvariantGlobalization=true -p:DebugType=None -p:DebugSymbols=false -p:EnableDiagnostics=false -p:PublishReadyToRun=false -p:TieredCompilation=false -p:EventSourceSupport=false -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=false
 
             await Task.Delay(Timeout.Infinite);

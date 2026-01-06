@@ -80,14 +80,14 @@ A powerful, multi-purpose C# server built with a modern, service-oriented archit
 - Video library with thumbnail previews
 - Secure access control for all video content
 
-### 🎤 Real-Time Voice Chat
+### 🎮 UDP Server
 - **Low-Latency UDP**: Built on UDP for real-time communication with minimal delay.
-- **High-Quality Audio**: Supports clear 16-bit audio at 16kHz for natural-sounding voice.
-- **Room & Channel System**: Organize conversations with dedicated rooms and channels.
-- **Targeted Communication**: Voice packets are only forwarded to clients in the same room and channel.
-- **Multi-Client Support**: Seamlessly connect multiple clients for group conversations.
+- **Room & Channel System**: Organize shared data with dedicated rooms and channels.
+- **Targeted Communication**: Packets are only forwarded to clients in the same room and channel.
+- **Multi-Client Support**: Seamlessly connect multiple clients.
 - **Robust Client Management**: Automatically handles client connections, room joins, and disconnections.
 - **Easy-to-Use Client**: A simple C# client library with room/channel commands for quick integration.
+- **Game Server Structure**: Simple yet powerful game server structure to make the creation of multiplayer games easier.
 
 ### 🔌 Dynamic Plugin System
 - **Hot-Reloading**: Load, update, and unload plugins at runtime without restarting the server.
