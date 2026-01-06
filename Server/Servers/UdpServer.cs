@@ -198,17 +198,18 @@ namespace UltimateServer.Servers
 
             foreach (var clientEndpoint in channel.Clients.Keys)
             {
+                if (clientEndpoint.Equals(sender))
+                    if (data.Length > _maxPacketSize)
+                    {
+                        _logger.Log($"❌ Failed to handle client data. Removing client {clientEndpoint}. Max packet size exeeded!");
+                        RemoveClient(clientEndpoint);
+                        continue;
+                    }
+
                 if (!clientEndpoint.Equals(sender))
                 {
                     try
                     {
-                        if (data.Length > _maxPacketSize)
-                        {
-                            _logger.Log($"❌ Failed to handle client data. Removing client {clientEndpoint}. Max packet size exeeded!");
-                            RemoveClient(clientEndpoint);
-                            continue;
-                        }
-
                         await _udpClient.SendAsync(data, data.Length, clientEndpoint);
                     }
                     catch (Exception ex)
